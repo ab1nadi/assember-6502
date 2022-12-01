@@ -1,5 +1,1 @@
-and a, $1234
-
-sta #12345
-
-asdlfkksja;lkfj;l ><
+00001
