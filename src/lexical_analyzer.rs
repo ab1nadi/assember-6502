@@ -1,37 +1,18 @@
 mod error;
-use fancy_regex::Regex;
 
+use fancy_regex::Regex;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 use crate::lexical_analyzer::error::LexicalError;
-
 use crate::unwrap_result_or_return_err;
 
 
-#[macro_export]
-macro_rules! return_option_or_error {
-    ( $e:expr, $v:expr  ) => {
-        match $e {
-            Ok(v) => v,
-            Err(_) =>  return Some(Err(LexicalError::new($v))),
-        }
-    }
-}
 
-#[macro_export]
-macro_rules! return_option_if_some {
-    ( $e:expr ) => {
-        match $e {
-            None =>  {},
-            Some(result) =>  return result,
-        }
-    }
-}
+
 
 
 // the LexicalAnalyzer
-// give it a file and then you can 
-// pull a token from it 
+// public struct 
 #[derive(Debug)]
 pub struct LexicalAnalyzer
 {
@@ -50,8 +31,7 @@ pub struct LexicalAnalyzer
 
 // token
 // a struct that
-// gets returned for each token
-// in the lexical analyzer
+// holds a lexical token 
 #[derive(Debug)]
 pub struct Token
 {
@@ -63,7 +43,8 @@ pub struct Token
 }
 
 // TokenType
-// enumerates the types a token can be 
+// enumarates the types of tokens
+// needs all this derive crap to be used and compared against
 #[derive(Debug)]
 #[derive(Clone)]
 #[derive(Copy)]
@@ -104,7 +85,9 @@ pub struct TokenParser
 // the lexical analyzer
 impl LexicalAnalyzer
 {
-
+    // exposed api /////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
+    
     // new 
     // returns a new lexical 
     // analyzer
@@ -127,6 +110,29 @@ impl LexicalAnalyzer
             current_line_new: true
         })
     }
+
+    // reset
+    // essentially this resets
+    // the iterator to the beginning 
+    // of the file
+    pub fn reset(& mut self)-> Result<(), LexicalError>
+    {
+        // reopen the file
+        let file = unwrap_result_or_return_err!(File::open(&self.file_name), "problem opening file");
+        self.reader = BufReader::new(file);
+
+        // reset eof 
+        self.return_eof = false;
+        self.current_line_new =true;
+        self.file_line = 0;
+        self.logical_line =0;
+
+        // return ok 
+        Ok(())
+    }
+
+    // exposed api end //////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
 
     // get_line
     // private function that
@@ -200,9 +206,12 @@ impl LexicalAnalyzer
         let reg = Regex::new(p.reg.as_str()).unwrap();
         let found_option = reg.find(&self.current_line).unwrap();
         
+
+        
         match found_option 
         {
-       
+            
+            // a token was found
             Some(caps) =>
             {
 
@@ -256,31 +265,11 @@ impl LexicalAnalyzer
  
         }
 
+        // this should never happen, because there is a garbage token
+        // that collects everything left, but in the case I messed up that
+        // regular expression this will catch 
         Err(LexicalError { details: ("No token selected".to_string()) })
     }   
-
-
-    // reset
-    // essentially this resets
-    // the iterator to the beginning 
-    // of the file
-    pub fn reset(& mut self)-> Result<(), LexicalError>
-    {
-        // reopen the file
-        let file = unwrap_result_or_return_err!(File::open(&self.file_name), "problem opening file");
-        self.reader = BufReader::new(file);
-
-        // reset eof 
-        self.return_eof = false;
-        self.current_line_new =true;
-        self.file_line = 0;
-        self.logical_line =0;
-
-        // return ok 
-        Ok(())
-    }
-
-
 
     // get_token_parsers
     // returns a list of regular expression
@@ -317,15 +306,6 @@ impl LexicalAnalyzer
                         token_type:TokenType::Label},
             TokenParser{reg:r"^[\w\W]+".to_string(),
                         token_type:TokenType::Garbage}  
-                                   
-                                   
-                                   
-                                   
-
-                                               
-                    
-            
-
         ]
     }
 
@@ -370,6 +350,9 @@ impl LexicalAnalyzer
 
 // implementing the Iterator trait
 // for the Lexical Analyzer
+// so that we can iterate over tokens
+// infact I expect this to be the only 
+// to interact with tokens
 impl Iterator  for  LexicalAnalyzer
 {
 
