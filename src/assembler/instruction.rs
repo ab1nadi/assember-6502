@@ -7,14 +7,14 @@ mod grammars{
     use crate::lexical_analyzer::TokenType;
     use crate::lexical_analyzer::TokenType::*;
 
-    pub const IMMEDIAT2BYTE:[TokenType; 2] = [Hash, Num2Bytes];
-    pub const ZEROPAGE:     [TokenType; 1] = [Num2Bytes];
-    pub const ZEROPAGEX:    [TokenType; 3] = [Num2Bytes, Comma, RegX];
-    pub const ABSOLUTE:     [TokenType; 1] = [Num4Bytes];
-    pub const ABSOLUTEX:    [TokenType; 3] = [Num4Bytes, Comma, RegX]; 
-    pub const ABSOLUTEY:    [TokenType; 3] = [Num4Bytes, Comma, RegY]; 
-    pub const INDIRECTX:    [TokenType; 5] = [LeftParenth, Num2Bytes, Comma, RegX, RightParenth];  
-    pub const INDIRECTY:    [TokenType; 5] = [LeftParenth, Num2Bytes, RightParenth, Comma, RegY];    
+    pub const IMMEDIAT2BYTE:[TokenType; 3] = [Hash, Num2Bytes, EOL];
+    pub const ZEROPAGE:     [TokenType; 2] = [Num2Bytes, EOL];
+    pub const ZEROPAGEX:    [TokenType; 4] = [Num2Bytes, Comma, RegX, EOL];
+    pub const ABSOLUTE:     [TokenType; 2] = [Num4Bytes, EOL];
+    pub const ABSOLUTEX:    [TokenType; 4] = [Num4Bytes, Comma, RegX, EOL]; 
+    pub const ABSOLUTEY:    [TokenType; 4] = [Num4Bytes, Comma, RegY, EOL]; 
+    pub const INDIRECTX:    [TokenType; 6] = [LeftParenth, Num2Bytes, Comma, RegX, RightParenth, EOL];  
+    pub const INDIRECTY:    [TokenType; 6] = [LeftParenth, Num2Bytes, RightParenth, Comma, RegY, EOL];    
 }
 
 // instruction 
@@ -34,7 +34,7 @@ impl Instruction
     // returns a list 
     // returns a map of instruction string codes 
     // paired with their instruction struct  
-    pub fn get_map()
+    pub fn get_map() -> HashMap<String,Instruction>
     {
         let mut map: HashMap<String,Instruction> = HashMap::new();
 
@@ -53,5 +53,7 @@ impl Instruction
             
             ],
         });
+
+        map
     }
 }

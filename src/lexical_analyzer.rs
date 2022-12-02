@@ -1,10 +1,8 @@
-mod error;
 
 use fancy_regex::Regex;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
-use crate::lexical_analyzer::error::LexicalError;
-use crate::unwrap_result_or_return_err;
+use crate::gen_errors::GeneralError;
 
 
 
@@ -95,9 +93,16 @@ impl LexicalAnalyzer
     // new 
     // returns a new lexical 
     // analyzer
-    pub fn new(file_name:String, remove_comm: bool) -> Result<LexicalAnalyzer, LexicalError>
+    pub fn new(file_name:String, remove_comm: bool) -> Result<LexicalAnalyzer, GeneralError>
     {
-        let file = unwrap_result_or_return_err!(File::open(&file_name), "problem opening file");
+        let file_result = File::open(&file_name);
+        let file;
+        match file_result
+        {
+            Err(_) => return Err(LexicalAnalyzer::error("Problem opening file")),
+            Ok(f) => file = f,
+        }
+
         
         Ok(LexicalAnalyzer 
         {
@@ -118,11 +123,18 @@ impl LexicalAnalyzer
     // reset
     // essentially this resets
     // the iterator to the beginning 
-    // of the file
-    pub fn reset(& mut self)-> Result<(), LexicalError>
+    // of the fil
+    pub fn reset(& mut self)-> Result<(), GeneralError>
     {
         // reopen the file
-        let file = unwrap_result_or_return_err!(File::open(&self.file_name), "problem opening file");
+        let file_result = File::open(&self.file_name);
+        let file;
+        match file_result
+        {
+            Err(_) => return Err(LexicalAnalyzer::error("Problem opening file")),
+            Ok(f) => file = f,
+        }
+
         self.reader = BufReader::new(file);
 
         // reset eof 
@@ -141,7 +153,7 @@ impl LexicalAnalyzer
     // get_line
     // private function that
     // getsline 
-    fn get_line(& mut self) -> Result<(), LexicalError>
+    fn get_line(& mut self) -> Result<(), GeneralError>
     {
 
 
@@ -159,7 +171,7 @@ impl LexicalAnalyzer
 
                 // something bad happened 
                 Err(err) => {
-                    return Err(LexicalError::new(&err.to_string()));
+                    return Err(LexicalAnalyzer::error("Something bad happened reading the file!"));
                 },
                 // eof
                 // just return 
@@ -185,7 +197,7 @@ impl LexicalAnalyzer
     // using regular expressions
     // this bad boy creates a token
     // removes it from the current line
-    fn parse_next_token(& mut self) -> Result<Token, LexicalError>
+    fn parse_next_token(& mut self) -> Result<Token, GeneralError>
     {
         // get a line 
         // if we dont already have one
@@ -272,7 +284,7 @@ impl LexicalAnalyzer
         // this should never happen, because there is a garbage token
         // that collects everything left, but in the case I messed up that
         // regular expression this will catch 
-        Err(LexicalError { details: ("No token selected".to_string()) })
+        Err(LexicalAnalyzer::error("No token parsed! Something is wrong with the parsers"))
     }   
 
     // get_token_parsers
@@ -325,7 +337,7 @@ impl LexicalAnalyzer
     // returns the eol if we are at an
     // eol
     // returns the eof if we are at the eof
-    fn return_eol_eof_if(& mut self) -> Option<Result<Token, LexicalError>>
+    fn return_eol_eof_if(& mut self) -> Option<Result<Token, GeneralError>>
     {
 
         if self.return_eol
@@ -360,6 +372,15 @@ impl LexicalAnalyzer
     {
         LexicalIterator::new(self)
     }
+
+
+    // error
+    // just returns an error
+    // with the from set to lexical
+    pub fn error(mssg: &str)-> GeneralError
+    {
+        GeneralError::new(mssg, "lexical")
+    }
 }
 
 
@@ -392,7 +413,7 @@ impl<'a> LexicalIterator<'a>
 impl<'a> Iterator  for  LexicalIterator<'a> 
 {
 
-    type Item=Result<Token, LexicalError>;
+    type Item=Result<Token, GeneralError>;
 
     fn next(&mut self) -> Option<Self::Item>
     {   

@@ -6,7 +6,7 @@ macro_rules! unwrap_result_or_return_err {
     ( $e:expr, $s:expr) => {
         match $e {
             Ok(v) => v,
-            Err(_) =>  return Err(LexicalError::new($s)),
+            Err(_) =>  return Err(GeneralError<T>::new($s)),
         }
     }
 }
@@ -17,24 +17,29 @@ macro_rules! unwrap_result_or_return_err {
 // wrong
 #[derive(Debug)]
 #[derive(Clone)]
-pub struct LexicalError
+pub struct GeneralError
 {
+    pub from: String,
     pub details: String
 }
 
-impl LexicalError {
-    pub fn new(msg: &str) -> LexicalError {
-        LexicalError{details: msg.to_string()}
+impl GeneralError {
+    pub fn new(msg: &str, frm: &str) -> GeneralError {
+        GeneralError
+        {
+            from: frm.to_string(),
+            details: msg.to_string()
+        }
     }
 }
 
-impl Error for LexicalError {
+impl Error for GeneralError  {
     fn description(&self) -> &str {
         &self.details
     }
 }
 
-impl fmt::Display for LexicalError {
+impl fmt::Display for GeneralError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"{}",self.details)
     }
