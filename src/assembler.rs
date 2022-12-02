@@ -2,6 +2,7 @@ mod instruction;
 mod errors;
 
 use std::collections::HashMap;
+use crate::lexical_analyzer;
 use crate::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
 use crate::assembler::errors::AssemblerError;
@@ -46,59 +47,13 @@ impl Assembler
     fn first_pass(& mut self) ->Result<(),AssemblerError>
     {
         
-        for tokenResult in &mut self.lexical_analyzer
-        {   
-            match tokenResult{
-                Ok(Token) =>
-                {
-                    // there is three things we expect here 
-                    // 1. directive
-                    // 2. a label
-                    // 3. a  instruction opcode
-                    match Token.token_type
-                    {
-                        TokenType::Label =>
-                        {
+        let itt = self.lexical_analyzer.get_iterator(); 
 
-                        },
-                        TokenType::Instruction =>
-                        {
-
-                        }
-                        _=>
-                        {
-
-                        }
-                    }
-                },
-                Err(err)=>
-                {
-                    return Err(AssemblerError::new(err.details.as_str()));
-                }
-
-
-            }
-        }
+        let i = itt.into_iter();
 
 
         Ok(())
     }
 
-
-    // first_pass_label
-    // adds labels and their byte
-    // values to the symbol table
-    fn first_pass_label(token:Token)
-    {
-
-    }
-
-    // first_pass_instruction
-    // checks that instructions match
-    // a given grammar     
-    fn first_pass_instruction(token:Token)
-    {
-
-    }
 }
 

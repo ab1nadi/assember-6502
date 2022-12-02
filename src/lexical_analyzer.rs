@@ -33,6 +33,8 @@ pub struct LexicalAnalyzer
 // a struct that
 // holds a lexical token 
 #[derive(Debug)]
+#[derive(Clone)]
+
 pub struct Token
 {
     pub token_type: TokenType,
@@ -57,8 +59,6 @@ pub enum TokenType
     RegA,
     Num2Bytes,
     Num4Bytes,
-    DecNum2Bytes,
-    DecNum4Bytes,
     Character,
     Hash,          // tells us it is immidiete addressing 
     Comment,           
@@ -195,7 +195,7 @@ impl LexicalAnalyzer
             Err(err) => return Err(err),
         }
 
-
+        self.current_line = self.current_line.trim().to_string();
 
         let op = self.return_eol_eof_if();
         if let Some(returnable) = op
@@ -303,7 +303,7 @@ impl LexicalAnalyzer
             TokenParser{reg:r"^(y|Y)((?=\W)|(?=\s)|\z)".to_string(),
                         token_type:TokenType::RegY},
             TokenParser{reg:r"^(a|A)((?=\W)|(?=\s)|\z)".to_string(),
-                        token_type:TokenType::RegY},
+                        token_type:TokenType::RegA},
             TokenParser{reg:r"^\,".to_string(),
                         token_type:TokenType::Comma},
             TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f]|[0-9A-Fa-f]))|
@@ -354,20 +354,45 @@ impl LexicalAnalyzer
     }
     
 
+    // get_iterator
+    // returns an iterator 
+    pub fn get_iterator(& mut self) -> LexicalIterator
+    {
+        LexicalIterator::new(self)
+    }
 }
 
 
 
+
+//LexicalIterator
+// allows you to iterate over the 
+// tokens in the lexical analyzer
+pub struct LexicalIterator<'a>
+{
+    analyzer: &'a mut LexicalAnalyzer,
+}
+
+//LexicalIterator
+// implementation
+// just returns a lexical iterator
+impl<'a> LexicalIterator<'a>
+{
+    fn new(lex: &'a mut LexicalAnalyzer) -> LexicalIterator<'a>
+    {
+        LexicalIterator { analyzer:  lex}
+    }
+}
 
 // implementing the Iterator trait
 // for the Lexical Analyzer
 // so that we can iterate over tokens
 // infact I expect this to be the only 
 // to interact with tokens
-impl Iterator  for  LexicalAnalyzer
+impl<'a> Iterator  for  LexicalIterator<'a> 
 {
 
-    type Item= Result<Token, LexicalError>;
+    type Item=Result<Token, LexicalError>;
 
     fn next(&mut self) -> Option<Self::Item>
     {   
@@ -375,20 +400,20 @@ impl Iterator  for  LexicalAnalyzer
         // so that the iterator
         // acutally ends
         // we want to return none after eof 
-        if self.returned_eof
+        if self.analyzer.returned_eof
         {
             return None;
         }
 
 
         // parse the next token 
-        let returned = self.parse_next_token();
-
-        // trim whitespaces from the current line so next token char is first
-        // in the current line
-        self.current_line = self.current_line.trim().to_string();
+        let returned = self.analyzer.parse_next_token();
 
         // return the Token
         Some(returned)
     }
 }
+
+
+
+

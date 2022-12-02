@@ -16,6 +16,7 @@ macro_rules! unwrap_result_or_return_err {
 // returned when something goes
 // wrong
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct LexicalError
 {
     pub details: String
@@ -38,3 +39,5 @@ impl fmt::Display for LexicalError {
         write!(f,"{}",self.details)
     }
 }
+
+

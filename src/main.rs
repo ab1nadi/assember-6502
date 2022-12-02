@@ -1,19 +1,26 @@
 mod assembler;
 mod lexical_analyzer;
+mod peek_wrapper;
 use crate::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::Assembler;
-
+use crate::peek_wrapper::PeekWrapper;
 
 fn main() {
-        let mut z = LexicalAnalyzer::new("file.txt".to_string(), false).unwrap();
 
-        // barrow z
-        for i in &mut z 
+    let mut analyzer = LexicalAnalyzer::new("file.txt".to_string(),true).unwrap();
+   
+    let  mut peek = PeekWrapper::new(analyzer.get_iterator(), 3);
+
+    loop    {
+        let i = peek.next();
+        println!("{:?}", i);
+        println!("peeking ahead: {:?}", peek.peek(0));
+
+        match i
         {
-            let t = i.unwrap();
-            println!("{:?}", t);
-        } 
-
-
+            None => break,
+            Some(_) => {},
+        }
+    }
 
 }

@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 fancy-regex = "0.10.0"
+queues = "1.0.2"
 
