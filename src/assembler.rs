@@ -1,6 +1,7 @@
 mod instruction;
 
 use std::collections::HashMap;
+use crate::gen_errors;
 use crate::lexical_analyzer;
 use crate::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
@@ -8,7 +9,7 @@ use crate::lexical_analyzer::TokenType;
 use crate::lexical_analyzer::Token;
 use crate::peek_wrapper::PeekWrapper;
 use crate::gen_errors::GeneralError;
-
+use std::fmt;
 // holds the assembler main struct 
 pub struct Assembler
 {
@@ -64,7 +65,18 @@ impl Assembler
                 Some(v)=> token=v?,
             }
 
-            // we now have the token 
+            match token.token_type
+            {
+                TokenType::Instruction =>
+                {
+                    
+                }
+
+                _ => 
+                {
+                    return Err(Assembler::create_error("Syntax Error", &token, vec![TokenType::Instruction]))
+                }
+            }
             
 
 
@@ -73,5 +85,25 @@ impl Assembler
         Ok(())
     }
 
+
+    // cretae_error
+    // creates a general error
+    fn create_error(error_description:&str, recieved:&Token, expected:Vec<TokenType>) ->GeneralError
+    {
+        let mut expec= "[".to_string();
+        for i in expected
+        {
+            expec = expec + &i.to_string();
+        }
+        expec = expec + "]";
+
+        let string = format!("{line}:{description}, expected: {expected:?}, recieved: {token}", line=recieved.file_line,description=error_description, expected=expec, token=recieved.to_string());
+
+        GeneralError::new(&string,"Assembler")
+    }
+
+
+
+    
 }
 
