@@ -12,5 +12,9 @@ fn main() {
 
     let mut analyzer = LexicalAnalyzer::new("file.txt".to_string(),true).unwrap();
 
+    for i in analyzer.get_iterator()
+    {
+        println!("{:?}", i);
+    }
 
 }

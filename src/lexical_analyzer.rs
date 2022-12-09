@@ -318,12 +318,9 @@ impl LexicalAnalyzer
                         token_type:TokenType::RegA},
             TokenParser{reg:r"^\,".to_string(),
                         token_type:TokenType::Comma},
-            TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f]|[0-9A-Fa-f]))|
-                              (^(([0-2][0-5][0-5])|([0-1][0-9][0-9])|([0-9][0-9])))) 
-                              ((?=\W)|(?=\s)|\z)".to_string(),
+            TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f]|[0-9A-Fa-f]))|^(([0-2][0-5][0-5])|([0-1][0-9][0-9])|([0-9][0-9])))((?=\W)|(?=\s)|\z)".to_string(),
                         token_type:TokenType::Num2Bytes},
-            TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]))|
-                              (^[0-9]+))((?=\W)|(?=\s)|\z)".to_string(),
+            TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]))|(^[0-9]+))((?=\W)|(?=\s)|\z)".to_string(),
                         token_type:TokenType::Num4Bytes},
             TokenParser{reg:r"^([0-9A-za-z$#@!?*&^%~\.;\[\]])+((?=\W)|(?=\s)|\z)".to_string(),
                         token_type:TokenType::Label},

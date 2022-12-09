@@ -8,6 +8,7 @@ use crate::lexical_analyzer::TokenType;
 use crate::lexical_analyzer::Token;
 use crate::peek_wrapper::PeekWrapper;
 use crate::gen_errors::GeneralError;
+use crate::lexical_analyzer::LexicalIterator;
 
 // holds the assembler main struct 
 pub struct Assembler
@@ -49,26 +50,35 @@ impl Assembler
     // finds all the labels on logical lines 
     fn first_pass(& mut self) ->Result<(),GeneralError>
     {
+        // the iterator that will be used
+        let mut iter = PeekWrapper::new(self.lexical_analyzer.get_iterator(), 3);
+
         loop 
         {   
-            // create iter
-            let mut iter = PeekWrapper::new(self.lexical_analyzer.get_iterator(), 3);
-
-            let token_result_option = iter.next();
-            let token;
-
-            // unwrap the option and get the token
-            match token_result_option
+            // peek the next token 
+            let next_token_option = iter.peek(0);
+            let next_token:Token;
+            match next_token_option 
             {
                 None => break,
-                Some(v)=> token=v?,
+                Some(t) => next_token = t?,
             }
 
-            // we now have the token 
-            
-
+            match next_token
+            {
+                
+                _ => {return Err(GeneralError::new("Expected Directive, instruction, label, or EOF, got {}" , "assembler:first_pass"))}
+            }
 
         }
+
+        Ok(())
+    }
+
+
+    fn parse_instruction_first_pass(& mut self, iter: PeekWrapper<LexicalIterator>)-> Result<(), GeneralError>
+    {
+
 
         Ok(())
     }

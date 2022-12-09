@@ -1,5 +1,0 @@
-aLabel
-
-sts 
-
-ldr 
