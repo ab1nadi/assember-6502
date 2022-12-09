@@ -41,7 +41,7 @@ impl Error for GeneralError  {
 
 impl fmt::Display for GeneralError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}",self.details)
+        write!(f,"from: {}, \n{}",self.from, self.details)
     }
 }
 

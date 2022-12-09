@@ -1,6 +1,7 @@
 mod instruction;
 
 use std::collections::HashMap;
+use crate::gen_errors;
 use crate::lexical_analyzer;
 use crate::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
@@ -9,7 +10,7 @@ use crate::lexical_analyzer::Token;
 use crate::peek_wrapper::PeekWrapper;
 use crate::gen_errors::GeneralError;
 use crate::lexical_analyzer::LexicalIterator;
-
+use std::fmt;
 // holds the assembler main struct 
 pub struct Assembler
 {
@@ -76,12 +77,24 @@ impl Assembler
     }
 
 
-    fn parse_instruction_first_pass(& mut self, iter: PeekWrapper<LexicalIterator>)-> Result<(), GeneralError>
+    // cretae_error
+    // creates a general error
+    fn create_error(error_description:&str, recieved:&Token, expected:Vec<TokenType>) ->GeneralError
     {
+        let mut expec= "[".to_string();
+        for i in expected
+        {
+            expec = expec + &i.to_string();
+        }
+        expec = expec + "]";
 
+        let string = format!("{line}:{description}, expected: {expected:?}, recieved: {token}", line=recieved.file_line,description=error_description, expected=expec, token=recieved.to_string());
 
-        Ok(())
+        GeneralError::new(&string,"Assembler")
     }
 
+
+
+    
 }
 

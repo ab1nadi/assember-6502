@@ -3,6 +3,7 @@ use fancy_regex::Regex;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 use crate::gen_errors::GeneralError;
+use std::fmt;
 
 
 
@@ -32,14 +33,21 @@ pub struct LexicalAnalyzer
 // holds a lexical token 
 #[derive(Debug)]
 #[derive(Clone)]
-
 pub struct Token
 {
     pub token_type: TokenType,
     pub value: String,
 
-    logical_line: u32,      // logical line doesn't include newlines or comment lines
-    file_line: u32,         // file line includes newlines and comment lines 
+    pub logical_line: u32,      // logical line doesn't include newlines or comment lines
+    pub file_line: u32,         // file line includes newlines and comment lines 
+}
+
+// implement display
+// for token so we can do to_string()
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Token{{ value: {} type: {} }}", self.value, self.token_type.to_string())
+    }
 }
 
 // TokenType
@@ -69,6 +77,32 @@ pub enum TokenType
     Garbage,    // the catchall for 
     EOF,
     EOL,        // end of line 
+}
+
+
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TokenType::Instruction => write!(f, "Instruction"),
+            TokenType::RegX => write!(f, "RegX"),
+            TokenType::RegY => write!(f, "RegY"),
+            TokenType::RegA => write!(f, "RegA"),
+            TokenType::Num2Bytes => write!(f, "Num2Bytes"),
+            TokenType::Num4Bytes => write!(f, "Num4Bytes"),
+            TokenType::Character => write!(f, "Character"),
+            TokenType::Hash => write!(f, "Hash"),
+            TokenType::Comment => write!(f, "Comment"),
+            TokenType::LeftParenth => write!(f, "LeftParenth"),
+            TokenType::RightParenth => write!(f, "RightParenth"),
+            TokenType::Comma => write!(f, "Comma"),
+            TokenType::Collon => write!(f, "Collon"),
+            TokenType::Label => write!(f, "Label"),
+            TokenType::Directive => write!(f, "Directive"),
+            TokenType::Garbage => write!(f, "Garbage"),
+            TokenType::EOF => write!(f, "EOF"),
+            TokenType::EOL => write!(f, "EOL"),  
+        }
+    }
 }
 
 // TokenParser
