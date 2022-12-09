@@ -197,10 +197,10 @@ impl LexicalAnalyzer
         // keep getting new lines 
         while self.current_line == ""
         {
+            self.file_line +=1;
             // whatever we return is a new line
             self.current_line_new = true;
             // we have gotten a new file line 
-            self.file_line +=1;
             // read from the file reader a line 
             match self.reader.read_line(&mut self.current_line) {
 
@@ -221,6 +221,12 @@ impl LexicalAnalyzer
                     self.current_line = self.current_line.trim().to_string();
                 }
             }
+
+        }
+
+        if self.current_line == ""
+        {
+            self.file_line -= 1;
 
         }
 
@@ -378,8 +384,8 @@ impl LexicalAnalyzer
             return Some(Ok(Token{
                 token_type:TokenType::EOL,
                 value: "".to_string(),
-                logical_line: self.logical_line,
-                file_line: self.file_line,
+                logical_line: self.logical_line-1,
+                file_line: self.file_line-1,
             }));
         }
 

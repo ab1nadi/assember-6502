@@ -72,6 +72,10 @@ impl Assembler
                 {
                     addedBytes = Assembler::instruction_parser( &self.instruction_table,&mut iter)?;
                 },
+                TokenType::EOF =>
+                {
+                    break;
+                }
                 _ => {return Err(Assembler::create_error("Syntax Error", &token, vec![TokenType::Instruction, TokenType::Directive, TokenType::Label]))}
             }
 
@@ -80,29 +84,12 @@ impl Assembler
         Ok(())
     }
 
-
-    // cretae_error
-    // creates a general error
-    fn create_error(error_description:&str, recieved:&Token, expected:Vec<TokenType>) ->GeneralError
-    {
-        let mut expec= "[".to_string();
-        for i in expected
-        {
-            expec = expec + &i.to_string();
-        }
-        expec = expec + "]";
-
-        let string = format!("{line}:{description}, expected: {expected:?}, recieved: {token}", line=recieved.file_line,description=error_description, expected=expec, token=recieved.to_string());
-
-        GeneralError::new(&string,"Assembler")
-    }
-
-
     // instruction_parser_first_pass
     // essentially this parses an instruction
     // from the lexical analyzer
     fn instruction_parser(instruction_table: &HashMap<String,Instruction>, iterator: &mut PeekWrapper<LexicalIterator>)-> Result<u32,GeneralError>
     {
+        // get the instruction_data_structure
         let instruction_token = Assembler::unwrap_token_option(iterator.next(), iterator)?;
         let instruction_option = instruction_table.get(&instruction_token.value);
         let instruction_data_struct;
@@ -113,49 +100,98 @@ impl Assembler
             Some(t)=>{instruction_data_struct = t},
         }
 
+
+        // gotten_tokens holds the gotten tokens
         let mut gotten_tokens:Vec<Token> = vec![];
 
-        let mut best_match: &Vec<TokenType>;
-
+        // holds a ref to the bestmatching grammar
+        let mut best_match:&(u8,Vec<TokenType>) = &instruction_data_struct.opcode_grammer[0];
+ 
+        // holds a count of the number of elements that match
         let mut best_match_size: u32 = 0;
+
+        // after everything is said and done did we get a match
+        let mut got_a_match = false;
 
         // iterate over all the token grammars
         for grammar_vec in &instruction_data_struct.opcode_grammer
         {
             let mut matched = true;
+            let mut match_count = 0;
+
+
             // iterate over all the possible tokens in a grammar
             for (i, token_type_grammar) in grammar_vec.1.iter().enumerate()
             {
+
+
                 // only get tokens when we need to
-                if gotten_tokens.len()-1 < i
+                if (gotten_tokens.len() as i32)-1 < i as i32
                 {
                     gotten_tokens.push(Assembler::unwrap_token_option(iterator.next(),iterator)?);
                 }
 
-                // if they don't equal this isn't a match 
-                if gotten_tokens[i].token_type != *token_type_grammar
+
+                // allow a type coercion from label to 2bytes num because, ultimately,  thats what labels are
+                if gotten_tokens[i].token_type == TokenType::Label && *token_type_grammar == TokenType::Num2Bytes
+                {
+                    match_count = match_count +1;
+                }
+                // no cohersion so just check if they equal or not
+                else if gotten_tokens[i].token_type != *token_type_grammar
                 {
                     matched = false;
                     break;
                 }
                 else 
                 {
-                    best_match_size = best_match_size +1;
+                    match_count = match_count +1;
                 }
             }   
+
 
             // if we matched totally this is what we want it to be 
             if(matched)
             {
-                best_match = &grammar_vec.1;
+                best_match = &grammar_vec;
+                got_a_match = true;
+                break;
             }
             else  
             {
-                if best_match_size > 
+               if match_count > best_match_size
+                    {
+                        best_match_size = match_count;
+                        best_match = &grammar_vec;
+                    }
+
             }
         }
         
-        Ok(32)
+
+        // it matched something 
+        if got_a_match
+        {
+            Ok(32)
+        }
+        // nothing matched
+        else
+        {
+            let top_token_option = gotten_tokens.get(best_match_size as usize);
+            let top_token;
+            match top_token_option
+            {
+                None => 
+                { 
+                    return Err(Assembler::create_empty_error("Something broke in instruction parser function"));
+                },
+                Some(s) => {top_token=s},
+            }
+
+            return Err(Assembler::create_error("Syntax Error", top_token, vec![best_match.1[(best_match_size) as usize]]));
+        }
+
+       
         
     }
 
@@ -173,6 +209,34 @@ impl Assembler
         }
 
         instrucion_token
+    }
+
+
+    
+    // cretae_error
+    // creates a general error
+    fn create_error(error_description:&str, recieved:&Token, expected:Vec<TokenType>) ->GeneralError
+    {
+        let mut expec= "[".to_string();
+        for i in expected
+        {
+            expec = expec + &i.to_string() + ", ";
+        }
+        expec = expec + "]";
+
+        let string = format!("{line}:{description}, expected: {expected:?}, recieved: {token}", line=recieved.file_line,description=error_description, expected=expec, token=recieved.to_string());
+
+        GeneralError::new(&string,"Assembler")
+    }
+
+
+    // create_empty_error
+    // doesn't have a recived or expected
+    // this is used for errors that are assembler based
+    // i.e. something broke in the assembler
+    fn create_empty_error(error_description:&str) ->GeneralError
+    {
+        GeneralError::new(&error_description,"Assembler")
     }
 
 }
