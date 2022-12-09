@@ -49,26 +49,30 @@ impl Assembler
 
     // first_pass
     // finds all the labels on logical lines 
-    fn first_pass(& mut self) ->Result<(),GeneralError>
+    fn first_pass(&mut self) ->Result<(),GeneralError>
     {
         // the iterator that will be used
         let mut iter = PeekWrapper::new(self.lexical_analyzer.get_iterator(), 3);
 
+        let mut addedBytes = 0;
         loop 
         {   
             // peek the next token 
             let next_token_option = iter.peek(0);
-            let next_token:Token;
+            let token:Token;
             match next_token_option 
             {
                 None => break,
-                Some(t) => next_token = t?,
+                Some(t) => token = t?,
             }
 
-            match next_token
+            match token.token_type
             {
-                
-                _ => {return Err(GeneralError::new("Expected Directive, instruction, label, or EOF, got {}" , "assembler:first_pass"))}
+                TokenType::Instruction => 
+                {
+                    addedBytes = Assembler::instruction_parser( &self.instruction_table,&mut iter)?;
+                },
+                _ => {return Err(Assembler::create_error("Syntax Error", &token, vec![TokenType::Instruction, TokenType::Directive, TokenType::Label]))}
             }
 
         }
@@ -94,7 +98,82 @@ impl Assembler
     }
 
 
+    // instruction_parser_first_pass
+    // essentially this parses an instruction
+    // from the lexical analyzer
+    fn instruction_parser(instruction_table: &HashMap<String,Instruction>, iterator: &mut PeekWrapper<LexicalIterator>)-> Result<u32,GeneralError>
+    {
+        let instruction_token = Assembler::unwrap_token_option(iterator.next(), iterator)?;
+        let instruction_option = instruction_table.get(&instruction_token.value);
+        let instruction_data_struct;
+        // unwrap the instruction_option
+        match instruction_option
+        {
+            None=>{return Err(Assembler::create_error("Instruction has not been implemented yet!", &instruction_token, vec![]))},
+            Some(t)=>{instruction_data_struct = t},
+        }
 
-    
+        let mut gotten_tokens:Vec<Token> = vec![];
+
+        let mut best_match: &Vec<TokenType>;
+
+        let mut best_match_size: u32 = 0;
+
+        // iterate over all the token grammars
+        for grammar_vec in &instruction_data_struct.opcode_grammer
+        {
+            let mut matched = true;
+            // iterate over all the possible tokens in a grammar
+            for (i, token_type_grammar) in grammar_vec.1.iter().enumerate()
+            {
+                // only get tokens when we need to
+                if gotten_tokens.len()-1 < i
+                {
+                    gotten_tokens.push(Assembler::unwrap_token_option(iterator.next(),iterator)?);
+                }
+
+                // if they don't equal this isn't a match 
+                if gotten_tokens[i].token_type != *token_type_grammar
+                {
+                    matched = false;
+                    break;
+                }
+                else 
+                {
+                    best_match_size = best_match_size +1;
+                }
+            }   
+
+            // if we matched totally this is what we want it to be 
+            if(matched)
+            {
+                best_match = &grammar_vec.1;
+            }
+            else  
+            {
+                if best_match_size > 
+            }
+        }
+        
+        Ok(32)
+        
+    }
+
+    // unwrap_token_option
+    // this function unwraps a token option
+    // and creates an error if it gets nothing
+    // needs the lexical_analyzer to get the linenumber of the error
+    fn unwrap_token_option(token:Option<Result<Token,GeneralError>>, iterator: &mut PeekWrapper<LexicalIterator>)->Result<Token,GeneralError>
+    {
+        let instrucion_token;
+        match token
+        {
+            None=>{ return Err(Assembler::create_error("Syntax Error, unpresidented eof. Or some other goofy error", &Token { token_type: TokenType::EOF, value: "".to_string(), logical_line: 0, file_line: iterator.iterator.analyzer.file_line }, vec![]))},
+            Some(S) => { instrucion_token = S;}
+        }
+
+        instrucion_token
+    }
+
 }
 

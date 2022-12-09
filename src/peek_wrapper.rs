@@ -7,7 +7,7 @@ pub struct PeekWrapper<T>
 where T: Iterator,
     T::Item: Clone
 {
-    iterator:T,
+    pub iterator:T,
     peek_queue: Vec<Option<<T as Iterator>::Item>>,
     peek_size: u32,
 }

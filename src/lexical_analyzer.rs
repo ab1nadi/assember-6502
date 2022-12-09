@@ -23,7 +23,7 @@ pub struct LexicalAnalyzer
     return_eol: bool,
     token_parsers: Vec<TokenParser>, 
     remove_comments: bool,
-    file_line: u32,
+    pub file_line: u32,
     logical_line: u32,
     current_line_new: bool,
 }
@@ -33,6 +33,7 @@ pub struct LexicalAnalyzer
 // holds a lexical token 
 #[derive(Debug)]
 #[derive(Clone)]
+#[derive(PartialEq)]
 pub struct Token
 {
     pub token_type: TokenType,
@@ -422,7 +423,7 @@ impl LexicalAnalyzer
 // tokens in the lexical analyzer
 pub struct LexicalIterator<'a>
 {
-    analyzer: &'a mut LexicalAnalyzer,
+    pub analyzer: &'a mut LexicalAnalyzer,
 }
 
 //LexicalIterator

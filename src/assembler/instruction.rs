@@ -22,8 +22,8 @@ mod grammars{
 // holds a hashmap full of possible grammars that this could be 
 pub struct Instruction 
 {
-    string_code: String,
-    opcode_grammer: Vec<(u8, Vec<TokenType>)>
+    pub string_code: String,
+    pub opcode_grammer: Vec<(u8, Vec<TokenType>)>
 }
 
 
