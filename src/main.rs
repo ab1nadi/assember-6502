@@ -14,7 +14,7 @@ fn main() {
 
     //let mut analyzer = LexicalAnalyzer::new("file.txt".to_string(),true).unwrap();
 
-    let mut assembler = Assembler::new("file.txt".to_string());
+    let mut assembler = Assembler::new("file.txt", "a").unwrap();
 
     let result = assembler.run();
 

@@ -8,13 +8,13 @@ mod grammars{
     use crate::lexical_analyzer::TokenType::*;
 
     pub const IMMEDIAT2BYTE:[TokenType; 3] = [Hash, Num2Bytes, EOL];
-    pub const ZEROPAGE:     [TokenType; 2] = [Num2Bytes, EOL];
-    pub const ZEROPAGEX:    [TokenType; 4] = [Num2Bytes, Comma, RegX, EOL];
-    pub const ABSOLUTE:     [TokenType; 2] = [Num4Bytes, EOL];
-    pub const ABSOLUTEX:    [TokenType; 4] = [Num4Bytes, Comma, RegX, EOL]; 
-    pub const ABSOLUTEY:    [TokenType; 4] = [Num4Bytes, Comma, RegY, EOL]; 
-    pub const INDIRECTX:    [TokenType; 6] = [LeftParenth, Num2Bytes, Comma, RegX, RightParenth, EOL];  
-    pub const INDIRECTY:    [TokenType; 6] = [LeftParenth, Num2Bytes, RightParenth, Comma, RegY, EOL];    
+    pub const ZEROPAGE:     [TokenType; 2] = [Num1Bytes, EOL];
+    pub const ZEROPAGEX:    [TokenType; 4] = [Num1Bytes, Comma, RegX, EOL];
+    pub const ABSOLUTE:     [TokenType; 2] = [Num2Bytes, EOL];
+    pub const ABSOLUTEX:    [TokenType; 4] = [Num2Bytes, Comma, RegX, EOL]; 
+    pub const ABSOLUTEY:    [TokenType; 4] = [Num2Bytes, Comma, RegY, EOL]; 
+    pub const INDIRECTX:    [TokenType; 6] = [LeftParenth, Num1Bytes, Comma, RegX, RightParenth, EOL];  
+    pub const INDIRECTY:    [TokenType; 6] = [LeftParenth, Num1Bytes, RightParenth, Comma, RegY, EOL];    
 }
 
 // instruction 

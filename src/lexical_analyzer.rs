@@ -4,7 +4,8 @@ use std::fs::File;
 use std::io::{BufReader, BufRead};
 use crate::gen_errors::GeneralError;
 use std::fmt;
-
+use std::io::SeekFrom;
+use std::io::Seek;
 
 
 
@@ -13,10 +14,10 @@ use std::fmt;
 // the LexicalAnalyzer
 // public struct 
 #[derive(Debug)]
-pub struct LexicalAnalyzer
+pub  struct LexicalAnalyzer
 {
-    file_name:  String,
-    reader: BufReader<File>,
+    file_name: String,
+    reader:   Box<BufReader<File>>,
     current_line: String, 
     return_eof: bool,                   // the difference between these is weather eof has or hasnt been returned yet
     returned_eof: bool,                 //
@@ -64,8 +65,8 @@ pub enum TokenType
     RegX,
     RegY,
     RegA,
+    Num1Bytes,
     Num2Bytes,
-    Num4Bytes,
     Character,
     Hash,          // tells us it is immidiete addressing 
     Comment,           
@@ -89,7 +90,7 @@ impl fmt::Display for TokenType {
             TokenType::RegY => write!(f, "RegY"),
             TokenType::RegA => write!(f, "RegA"),
             TokenType::Num2Bytes => write!(f, "Num2Bytes"),
-            TokenType::Num4Bytes => write!(f, "Num4Bytes"),
+            TokenType::Num1Bytes => write!(f, "Num1ytes"),
             TokenType::Character => write!(f, "Character"),
             TokenType::Hash => write!(f, "Hash"),
             TokenType::Comment => write!(f, "Comment"),
@@ -131,18 +132,18 @@ impl LexicalAnalyzer
     pub fn new(file_name:String, remove_comm: bool) -> Result<LexicalAnalyzer, GeneralError>
     {
         let file_result = File::open(&file_name);
-        let file;
+        let file_;
         match file_result
         {
             Err(_) => return Err(LexicalAnalyzer::error("Problem opening file")),
-            Ok(f) => file = f,
+            Ok(f) => file_ = f,
         }
 
         
         Ok(LexicalAnalyzer 
         {
             file_name: file_name,
-            reader: BufReader::new(file),
+            reader: Box::new(BufReader::new(file_)),
             current_line: "".to_string(),
             return_eof: false,
             returned_eof: false,
@@ -161,19 +162,20 @@ impl LexicalAnalyzer
     // of the fil
     pub fn reset(& mut self)-> Result<(), GeneralError>
     {
-        // reopen the file
-        let file_result = File::open(&self.file_name);
-        let file;
-        match file_result
-        {
-            Err(_) => return Err(LexicalAnalyzer::error("Problem opening file")),
-            Ok(f) => file = f,
-        }
 
-        self.reader = BufReader::new(file);
+        // get the inner file
+        let possible_error = self.reader.seek(SeekFrom::Start(0));
+
+        match possible_error
+        {
+            Err(_) => return Err(LexicalAnalyzer::error("Something bad happened reseting the lexical analyzer")),
+            _ => {},
+        }
 
         // reset eof 
         self.return_eof = false;
+        self.returned_eof = false;
+        self.return_eol = false;
         self.current_line_new =true;
         self.file_line = 0;
         self.logical_line =0;
@@ -359,10 +361,10 @@ impl LexicalAnalyzer
                         token_type:TokenType::RegA},
             TokenParser{reg:r"^\,".to_string(),
                         token_type:TokenType::Comma},
-            TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f]|[0-9A-Fa-f]))|^(([0-2][0-5][0-5])|([0-1][0-9][0-9])|([0-9][0-9])))((?=\W)|(?=\s)|\z)".to_string(),
-                        token_type:TokenType::Num2Bytes},
+            TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f]|[0-9A-Fa-f]))|^(([0-2][0-5][0-5])|([0-1][0-9][0-9])|([0-9][0-9])|([0-9])))((?=\W)|(?=\s)|\z)".to_string(),
+                        token_type:TokenType::Num1Bytes},
             TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]))|(^[0-9]+))((?=\W)|(?=\s)|\z)".to_string(),
-                        token_type:TokenType::Num4Bytes},
+                        token_type:TokenType::Num2Bytes},
             TokenParser{reg:r"^([0-9A-za-z$#@!?*&^%~\.;\[\]])+((?=\W)|(?=\s)|\z)".to_string(),
                         token_type:TokenType::Label},
             TokenParser{reg:r"^[\w\W]+".to_string(),
@@ -429,7 +431,7 @@ impl LexicalAnalyzer
 // tokens in the lexical analyzer
 pub struct LexicalIterator<'a>
 {
-    pub analyzer: &'a mut LexicalAnalyzer,
+    pub analyzer: &'a mut LexicalAnalyzer
 }
 
 //LexicalIterator
@@ -439,7 +441,7 @@ impl<'a> LexicalIterator<'a>
 {
     fn new(lex: &'a mut LexicalAnalyzer) -> LexicalIterator<'a>
     {
-        LexicalIterator { analyzer:  lex}
+        LexicalIterator { analyzer: lex}
     }
 }
 
