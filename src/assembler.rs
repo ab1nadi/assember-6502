@@ -252,7 +252,7 @@ impl Assembler
 
         // get the instruction_data_structure
         let instruction_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?;
-        let instruction_option = assembler.instruction_table.get(&instruction_token.value);
+        let instruction_option = assembler.instruction_table.get(&instruction_token.value.to_lowercase());
         let instruction_data_struct;
         // unwrap the instruction_option
         match instruction_option

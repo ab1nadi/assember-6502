@@ -1,4 +1,6 @@
-lda $4a
+lda $43
 
+
+CLC
 
 brk
