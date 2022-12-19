@@ -1,7 +1,7 @@
 .org $FF
 
-label:
-.byte $FFFA 'a', 'c', 2323234234
 
+.byte $FFFA 'a', 'c', 2323234234
+label:
 lda label
 

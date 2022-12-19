@@ -17,7 +17,7 @@ use std::io::Seek;
 pub  struct LexicalAnalyzer
 {
     file_name: String,
-    reader:   Box<BufReader<File>>,
+    reader: Box<BufReader<File>>,
     current_line: String, 
     return_eof: bool,                   // the difference between these is weather eof has or hasnt been returned yet
     returned_eof: bool,                 //
@@ -408,7 +408,7 @@ impl LexicalAnalyzer
 
     // get_iterator
     // returns an iterator 
-    pub fn get_iterator(& mut self) -> LexicalIterator
+    pub fn get_iterator(self) -> LexicalIterator
     {
         LexicalIterator::new(self)
     }
@@ -429,17 +429,17 @@ impl LexicalAnalyzer
 //LexicalIterator
 // allows you to iterate over the 
 // tokens in the lexical analyzer
-pub struct LexicalIterator<'a>
+pub struct LexicalIterator
 {
-    pub analyzer: &'a mut LexicalAnalyzer
+    pub analyzer: LexicalAnalyzer
 }
 
 //LexicalIterator
 // implementation
 // just returns a lexical iterator
-impl<'a> LexicalIterator<'a>
+impl<'a> LexicalIterator
 {
-    fn new(lex: &'a mut LexicalAnalyzer) -> LexicalIterator<'a>
+    fn new(lex: LexicalAnalyzer) -> LexicalIterator
     {
         LexicalIterator { analyzer: lex}
     }
@@ -450,7 +450,7 @@ impl<'a> LexicalIterator<'a>
 // so that we can iterate over tokens
 // infact I expect this to be the only 
 // to interact with tokens
-impl<'a> Iterator  for  LexicalIterator<'a> 
+impl<'a> Iterator  for  LexicalIterator
 {
 
     type Item=Result<Token, GeneralError>;

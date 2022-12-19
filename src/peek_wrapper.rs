@@ -12,7 +12,7 @@ where T: Iterator,
     peek_size: u32,
 }
 
-impl<T> PeekWrapper<T>
+impl<T> PeekWrapper< T>
 where T: Iterator,
       T::Item: Clone,
 {
@@ -25,7 +25,7 @@ where T: Iterator,
         let mut iterator = it;
 
         // fill up the peek vec for the first time
-        for i in 0..size
+        for _i in 0..size
         {
             peek_vec.push(iterator.next());
         }
@@ -45,6 +45,7 @@ where T: Iterator,
 
         returned
     }
+
 
     // shift_left
     // moves everything in the
@@ -76,7 +77,7 @@ where T: Iterator,
 
 // Makes it so we can loop over this 
 // too
-impl<T> Iterator for PeekWrapper<T> 
+impl<T> Iterator for PeekWrapper<T>
 where T: Iterator,
       T::Item: Clone,
 {

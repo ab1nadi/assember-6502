@@ -1,6 +1,7 @@
 mod instruction;
 
 use std::any::Any;
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use crate::gen_errors;
 use crate::lexical_analyzer;
@@ -14,14 +15,15 @@ use crate::lexical_analyzer::LexicalIterator;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-
+use std::cell::RefCell;
 use std::u8;
 use std::u16;
 
 // holds the assembler main struct 
 pub struct Assembler
 {
-    lexical_analyzer: LexicalAnalyzer,
+    read_file_name: String,
+    lexical_iterator: PeekWrapper<LexicalIterator>,
     symbol_table: HashMap<String, u32>,
     current_byte: u32,
     instruction_table: HashMap<String,Instruction>,
@@ -44,10 +46,12 @@ impl Assembler
             Err(err) => return Err(Assembler::create_empty_error(err.to_string().as_str()))
         }
         
-        
+    
+     
         Ok(Assembler 
         {
-            lexical_analyzer: LexicalAnalyzer::new(file_name.to_string(), true).unwrap(),
+            read_file_name: file_name.to_string(),
+            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new(file_name.to_string(), true).unwrap().get_iterator(),3),
             symbol_table: HashMap::new(),
             current_byte: 0,
             instruction_table: Instruction::get_map(),
@@ -71,14 +75,13 @@ impl Assembler
     // finds all the labels on logical lines 
     fn first_pass(&mut self) ->Result<(),GeneralError>
     {
-        // the iterator that will be used
-        let mut iter = PeekWrapper::new(self.lexical_analyzer.get_iterator(), 3);
 
-        let mut current_byte = self.current_byte;
+
+
         loop 
         {   
             // peek the next token 
-            let next_token_option = iter.peek(0);
+            let next_token_option = self.lexical_iterator.peek(0);
             let token:Token;
             match next_token_option 
             {
@@ -91,15 +94,15 @@ impl Assembler
                 
                 TokenType::Directive => 
                 {
-                    Assembler::directive_parser(&mut iter, &mut self.symbol_table, None,&mut current_byte)?;
+                    Assembler::directive_parser(self, true)?;
                 }
                 TokenType::Label => 
                 {
-                    Assembler::label_parser_first_pass(&mut self.symbol_table, &mut iter, current_byte)?;
+                    Assembler::label_parser(self, true)?;
                 },
                 TokenType::Instruction => 
                 {
-                    current_byte = current_byte + Assembler::instruction_parser( &mut self.symbol_table, &self.instruction_table,&mut iter, None)?;
+                  Assembler::instruction_parser( self, true)?;
                 },
                 TokenType::EOF =>
                 {
@@ -110,7 +113,7 @@ impl Assembler
 
         }
 
-        println!("current_byte: {}", current_byte);
+        println!("current_byte: {}", self.current_byte);
 
         Ok(())
     }
@@ -119,20 +122,17 @@ impl Assembler
     // finds all the labels on logical lines 
     fn second_pass(&mut self) ->Result<(),GeneralError>
     {
+        
         // reset the lexical analyzer 
         // so we can do another pass
-        self.lexical_analyzer.reset()?;
-
-        // the iterator that will be used
-        let mut iter = PeekWrapper::new(self.lexical_analyzer.get_iterator(), 3);
-
-
-        println!(" in the second pass");
-        let mut current_byte = self.current_byte;
+        self.lexical_iterator = PeekWrapper::new(LexicalAnalyzer::new(self.read_file_name.to_string(), true).unwrap().get_iterator(),3);
+        
+        self.current_byte = 0;
+;
         loop 
         {   
             // peek the next token 
-            let next_token_option = iter.peek(0);
+            let next_token_option = self.lexical_iterator.peek(0);
             let token:Token;
             match next_token_option 
             {
@@ -144,15 +144,15 @@ impl Assembler
             {   
                 TokenType::Directive =>
                 {
-                    Assembler::directive_parser(&mut iter, &mut self.symbol_table, Some(& mut self.file_writer), &mut current_byte)?;
+                    Assembler::directive_parser(self, false)?;
                 }
                 TokenType::Label => 
                 {
-                    Assembler::label_parser_second_pass(&mut self.symbol_table, &mut iter, current_byte)?;
+                    Assembler::label_parser(self, false)?;
                 },
                 TokenType::Instruction => 
                 {
-                    current_byte = current_byte + Assembler::instruction_parser( &mut self.symbol_table, &self.instruction_table,&mut iter, Some(& mut self.file_writer))?;
+                  Assembler::instruction_parser( self, false)?;
                 },
                 TokenType::EOF =>
                 {
@@ -163,7 +163,7 @@ impl Assembler
 
         }
 
-        println!("current_byte: {}", current_byte);
+        println!("current_byte: {}", self.current_byte);
 
         Ok(())
     }
@@ -171,27 +171,37 @@ impl Assembler
     
     // directive_parser 
     // does whatever the directive is supposed to do
-    fn directive_parser(iterator: &mut PeekWrapper<LexicalIterator>, symbol_table: & mut HashMap<String, u32>, file_writer: Option<&mut File>, current_byte: &mut u32)-> Result<u32,GeneralError>
+    fn directive_parser(assembler: &mut Assembler, first_pass: bool)-> Result<(),GeneralError>
     {
-        // the returned number of bytes
-        // essentially a directive parser 
-        // will return 0 if it isn't the directive 
-        let mut returned_bytes = 0;
 
-        returned_bytes = returned_bytes + Assembler::byte_directive_parser(iterator, symbol_table, file_writer)?;
+        Assembler::byte_directive_parser(assembler, first_pass)?;
+        Assembler::org_directive_parser(assembler)?;
 
-        returned_bytes = returned_bytes + Assembler::org_directive_parser(iterator,current_byte)?;
-
-        Ok(returned_bytes)
+        Ok(())
     }
 
 
     // label_parser_first_pass
     // adds a label to the symbol table
-    fn label_parser_first_pass( symbol_table: &mut HashMap<String,u32>, iterator: &mut PeekWrapper<LexicalIterator>, current_byte: u32) -> Result<(),GeneralError>
+    fn label_parser(assembler: &mut Assembler, first_pass:bool) -> Result<(),GeneralError>
     {
+            // don't do anything on the second pass
+            if !first_pass 
+            {
+                 // consume a colon if it is there 
+                 Assembler::consume_if_available(TokenType::Label, &mut assembler.lexical_iterator)?;
+
+                // consume a colon if it is there 
+                Assembler::consume_if_available(TokenType::Collon, &mut assembler.lexical_iterator)?;
+
+                // consume an eol if it is there 
+                Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
+
+                return Ok(());
+            }
+
             // get the label
-            let next_token_option =  iterator.next();
+            let next_token_option =  assembler.lexical_iterator.next();
             let token_label:Token;
             match next_token_option 
             {
@@ -201,15 +211,15 @@ impl Assembler
 
 
             // consume a colon if it is there 
-            Assembler::consume_if_available(TokenType::Collon, iterator)?;
+            Assembler::consume_if_available(TokenType::Collon, &mut assembler.lexical_iterator)?;
 
             // consume an eol if it is there 
-            Assembler::consume_if_available(TokenType::EOL, iterator)?;
+            Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
 
 
             // add the label to the symbol table 
             // if the label already exists throw an error 
-           let option =  symbol_table.insert(token_label.value.clone(), current_byte);
+           let option =  assembler.symbol_table.insert(token_label.value.clone(), assembler.current_byte);
 
            match option
            {
@@ -228,38 +238,19 @@ impl Assembler
 
     }
 
-    // label_parser_second_pass
-    // basically just consumes a label
-    // because it should already be on the symbol table for the
-    // second pass
-    fn label_parser_second_pass( symbol_table: &mut HashMap<String,u32>, iterator: &mut PeekWrapper<LexicalIterator>, current_byte: u32) -> Result<(),GeneralError>
-    {
-            // consume a label, it should be there
-            Assembler::consume_if_available(TokenType::Label, iterator)?;
-
-            // consume a colon if it is there 
-            Assembler::consume_if_available(TokenType::Collon, iterator)?;
-
-            // consume an eol if it is there 
-            Assembler::consume_if_available(TokenType::EOL, iterator)?;
-
-            Ok(())
-
-
-    }
 
     // instruction_parser_first_pass
     // essentially this parses an instruction
     // from the lexical analyzer
-    fn instruction_parser(symbol_table: &mut HashMap<String,u32>, instruction_table: &HashMap<String,Instruction>, iterator: &mut PeekWrapper<LexicalIterator>, file_writer: Option<&mut File>)-> Result<u32,GeneralError>
+    fn instruction_parser(assembler: &mut Assembler, first_pass: bool)-> Result<(),GeneralError>
     {
 
         // returned number of bytes 
         let mut returned_bytes = 1;
 
         // get the instruction_data_structure
-        let instruction_token = Assembler::unwrap_token_option(iterator.next(), iterator)?;
-        let instruction_option = instruction_table.get(&instruction_token.value);
+        let instruction_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?;
+        let instruction_option = assembler.instruction_table.get(&instruction_token.value);
         let instruction_data_struct;
         // unwrap the instruction_option
         match instruction_option
@@ -298,7 +289,7 @@ impl Assembler
                 // only get tokens when we need to
                 if (gotten_tokens.len() as i32)-1 < i as i32
                 {
-                    gotten_tokens.push(Assembler::unwrap_token_option(iterator.next(),iterator)?);
+                    gotten_tokens.push(Assembler::unwrap_token_option(assembler.lexical_iterator.next(),&mut assembler.lexical_iterator)?);
                 }
 
                 // allow a type coercion from label to 2bytes num because, ultimately,  thats what labels are
@@ -357,32 +348,26 @@ impl Assembler
         if got_a_match
         {
 
-            // if something matched and the file writer exists
-            // write these bytes to the file 
-            match file_writer
+            // write to file only on the second pass
+            if !first_pass 
             {
-                Some(f) => 
-                {
                     // write the opcode
-                    f.write(&[best_match.0]).unwrap();
+                    assembler.file_writer.write(&[best_match.0]).unwrap();
 
                     // write the tokens
                     for token in gotten_tokens
                     {
                         println!("wrote: {:?}", token);
-                        Assembler::write_token_to_file(f, token, symbol_table)?;
+                        Assembler::write_token_to_file(&mut assembler.file_writer, token, &mut assembler.symbol_table)?;
                     }
-                }
-
-                _ => {},
             }
+            
+
+            // add the bytes to the assemblers current byte
+            assembler.current_byte = assembler.current_byte + returned_bytes;
 
 
-
-
-
-
-            Ok(returned_bytes)
+            Ok(())
         }
         // nothing matched
         else
@@ -637,10 +622,14 @@ impl Assembler
     // and a list of bytes after it 
     // will store 2 bytes or 4 byte values 
     // witch can be labels, 
-    fn byte_directive_parser(iterator: &mut PeekWrapper<LexicalIterator>, symbol_table: &mut HashMap<String, u32>, file_writer:Option<&mut File>)-> Result<u32,GeneralError>
+    fn byte_directive_parser(assembler: &mut Assembler, first_pass:bool)-> Result<(),GeneralError>
     {
+        
+
+
+       
         // peek the token 
-        let token_option = iterator.peek(0);
+        let token_option = assembler.lexical_iterator.peek(0);
         let token;
         match token_option 
         {
@@ -653,9 +642,9 @@ impl Assembler
         {
             // consume the .byte
             // its there because we peeked it
-            iterator.next();
+            assembler.lexical_iterator.next();
 
-            let mut current_token = Assembler::unwrap_token_option(iterator.next(), iterator)?;
+            let mut current_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), & mut assembler.lexical_iterator)?;
 
             let mut tokens: Vec<Token> = vec![];
 
@@ -665,7 +654,7 @@ impl Assembler
             while current_token.token_type != TokenType::EOL 
             {
                 // consume a comma if availabe 
-                Assembler::consume_if_available(TokenType::Comma, iterator)?;
+                Assembler::consume_if_available(TokenType::Comma, & mut assembler.lexical_iterator)?;
 
                 println!("{:?}", current_token);
 
@@ -684,32 +673,25 @@ impl Assembler
                     return Err(Assembler::create_error("Syntax error", &current_token, vec![TokenType::Character, TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label]))
                 }
 
-                current_token = Assembler::unwrap_token_option(iterator.next(), iterator)?;
+                current_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?;
             }
             
 
-            match file_writer
-            {
-                Some(f) => 
+           if !first_pass 
+           {
+                for token in tokens 
                 {
-                   for token in tokens 
-                   {
-                     Assembler::write_token_to_file(f, token, symbol_table)?;
-                   }
+                Assembler::write_token_to_file(&mut assembler.file_writer, token, &mut assembler.symbol_table)?;
                 }
+           }
 
-                _ => {},
-            }
 
-            
+           assembler.current_byte = assembler.current_byte + returned_bytes;
 
-            Ok(returned_bytes)
-        }
-        else 
-        {
-            Ok(0)
+         
         }
 
+        Ok(())
     }
 
 
@@ -720,10 +702,11 @@ impl Assembler
     // will set the org 
     // of the current byte count
     // so that labels will be in relation to that 
-    fn org_directive_parser(iterator: &mut PeekWrapper<LexicalIterator>, current_byte: &mut u32)-> Result<u32,GeneralError>
+    fn org_directive_parser(assembler:&mut Assembler)-> Result<u32,GeneralError>
     {
+
          // peek the token 
-         let token_option = iterator.peek(0);
+         let token_option = assembler.lexical_iterator.peek(0);
          let token;
          match token_option 
          {
@@ -735,18 +718,18 @@ impl Assembler
          if token.value.to_lowercase() == ".org"
          {
             // consume the .org
-            iterator.next();
+            assembler.lexical_iterator.next();
 
             // get the next token 
-            let token = Assembler::unwrap_token_option(iterator.next(), iterator)?;
+            let token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?;
 
             if token.token_type == TokenType::Num1Bytes 
             {
-                *current_byte = Assembler::one_byte_num_string_to_int(token.value) as u32;
+                assembler.current_byte = Assembler::one_byte_num_string_to_int(token.value) as u32;
             }
             else if token.token_type == TokenType::Num2Bytes
             {
-                *current_byte = Assembler::two_byte_num_string_to_int(token.value) as u32;
+                assembler.current_byte = Assembler::two_byte_num_string_to_int(token.value) as u32;
             }
             else 
             {
@@ -754,7 +737,7 @@ impl Assembler
             }
 
 
-            Assembler::consume_if_available(TokenType::EOL, iterator)?;
+            Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
 
          }
 
