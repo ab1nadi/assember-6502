@@ -4,8 +4,6 @@ use std::fs::File;
 use std::io::{BufReader, BufRead};
 use crate::gen_errors::GeneralError;
 use std::fmt;
-use std::io::SeekFrom;
-use std::io::Seek;
 
 
 
@@ -16,7 +14,6 @@ use std::io::Seek;
 #[derive(Debug)]
 pub  struct LexicalAnalyzer
 {
-    file_name: String,
     reader: Box<BufReader<File>>,
     current_line: String, 
     return_eof: bool,                   // the difference between these is weather eof has or hasnt been returned yet
@@ -48,7 +45,7 @@ pub struct Token
 // for token so we can do to_string()
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Token{{ value: {} type: {} }}", self.value, self.token_type.to_string())
+        write!(f, "Token{{value:{}, type:{}}}", self.value, self.token_type.to_string())
     }
 }
 
@@ -142,7 +139,6 @@ impl LexicalAnalyzer
         
         Ok(LexicalAnalyzer 
         {
-            file_name: file_name,
             reader: Box::new(BufReader::new(file_)),
             current_line: "".to_string(),
             return_eof: false,
@@ -159,7 +155,8 @@ impl LexicalAnalyzer
     // reset
     // essentially this resets
     // the iterator to the beginning 
-    // of the fil
+    // of the fill
+    /* 
     pub fn reset(& mut self)-> Result<(), GeneralError>
     {
 
@@ -184,6 +181,8 @@ impl LexicalAnalyzer
         Ok(())
     }
 
+    */
+
     // exposed api end //////////////////////////////////////////
     ////////////////////////////////////////////////////////////
 
@@ -207,7 +206,7 @@ impl LexicalAnalyzer
             match self.reader.read_line(&mut self.current_line) {
 
                 // something bad happened 
-                Err(err) => {
+                Err(_) => {
                     return Err(LexicalAnalyzer::error("Something bad happened reading the file!"));
                 },
                 // eof

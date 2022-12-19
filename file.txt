@@ -1,7 +1,4 @@
-.org $FF
+lda $4a
 
 
-.byte $FFFA 'a', 'c', 2323234234
-label:
-lda label
-
+brk

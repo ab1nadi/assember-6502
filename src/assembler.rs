@@ -1,10 +1,7 @@
 mod instruction;
 
-use std::any::Any;
-use std::borrow::BorrowMut;
+
 use std::collections::HashMap;
-use crate::gen_errors;
-use crate::lexical_analyzer;
 use crate::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
 use crate::lexical_analyzer::TokenType;
@@ -12,10 +9,8 @@ use crate::lexical_analyzer::Token;
 use crate::peek_wrapper::PeekWrapper;
 use crate::gen_errors::GeneralError;
 use crate::lexical_analyzer::LexicalIterator;
-use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-use std::cell::RefCell;
 use std::u8;
 use std::u16;
 
@@ -37,8 +32,8 @@ impl Assembler
     // return a new assembler 
     pub fn new(file_name: &str, output_file_name: &str) -> Result<Assembler, GeneralError>
     {
-        let mut file_result = File::create(output_file_name);
-        let mut file;
+        let  file_result = File::create(output_file_name);
+        let  file;
 
         match file_result 
         {
@@ -113,7 +108,6 @@ impl Assembler
 
         }
 
-        println!("current_byte: {}", self.current_byte);
 
         Ok(())
     }
@@ -128,7 +122,7 @@ impl Assembler
         self.lexical_iterator = PeekWrapper::new(LexicalAnalyzer::new(self.read_file_name.to_string(), true).unwrap().get_iterator(),3);
         
         self.current_byte = 0;
-;
+
         loop 
         {   
             // peek the next token 
@@ -163,7 +157,6 @@ impl Assembler
 
         }
 
-        println!("current_byte: {}", self.current_byte);
 
         Ok(())
     }
@@ -173,9 +166,18 @@ impl Assembler
     // does whatever the directive is supposed to do
     fn directive_parser(assembler: &mut Assembler, first_pass: bool)-> Result<(),GeneralError>
     {
+        let token = assembler.lexical_iterator.peek(0).unwrap()?;
 
-        Assembler::byte_directive_parser(assembler, first_pass)?;
-        Assembler::org_directive_parser(assembler)?;
+        let mut _parsed_something = false;
+        _parsed_something = _parsed_something || Assembler::byte_directive_parser(assembler, first_pass)?;
+        _parsed_something = _parsed_something || Assembler::org_directive_parser(assembler)?;
+
+
+        // it didn't parse anything 
+        if !_parsed_something 
+        {
+            return Err(Assembler::create_error("Syntax Error, directive not implemented", &token, vec![TokenType::Directive]));
+        }
 
         Ok(())
     }
@@ -324,7 +326,7 @@ impl Assembler
 
 
             // if we matched totally this is what we want it to be 
-            if(matched)
+            if matched
             {
              
                 returned_bytes = returned_bytes + total_bytes;
@@ -357,7 +359,6 @@ impl Assembler
                     // write the tokens
                     for token in gotten_tokens
                     {
-                        println!("wrote: {:?}", token);
                         Assembler::write_token_to_file(&mut assembler.file_writer, token, &mut assembler.symbol_table)?;
                     }
             }
@@ -400,7 +401,7 @@ impl Assembler
         match token
         {
             None=>{ return Err(Assembler::create_error("Syntax Error, unpresidented eof. Or some other goofy error", &Token { token_type: TokenType::EOF, value: "".to_string(), logical_line: 0, file_line: iterator.iterator.analyzer.file_line }, vec![]))},
-            Some(S) => { instrucion_token = S;}
+            Some(s) => { instrucion_token = s;}
         }
 
         instrucion_token
@@ -521,7 +522,8 @@ impl Assembler
                 let character = iter.next().unwrap();
 
                 // write the character to the file
-                file.write(&[character as u8]);
+                result = file.write(&[character as u8]);
+                
             }
             _ => { }
         }
@@ -529,7 +531,7 @@ impl Assembler
 
 
         match result {
-            Err(err)=> Err(Assembler::create_empty_error("Problem writing to file")),
+            Err(_)=> Err(Assembler::create_empty_error("Problem writing to file")),
 
             _=> Ok(())
         }
@@ -544,7 +546,7 @@ impl Assembler
     fn one_byte_num_string_to_int(num: String) -> u8
     {
 
-        let mut returned:u8 = 0;
+        let mut _returned:u8 = 0;
 
         // its a hex number
         if num.chars().next().unwrap() == '$'
@@ -561,18 +563,17 @@ impl Assembler
             let hex_num = u8::from_str_radix(hex_num_str, 16).unwrap();
 
 
-            println!("the hex_num_str: {}", hex_num);
 
-            returned = hex_num;
+            _returned = hex_num;
 
         }
         // not hex
         else 
         {
-            returned = num.parse().unwrap();
+            _returned = num.parse().unwrap();
         }
 
-        returned
+        _returned
     }
 
     // two_byte_num_string_to_int
@@ -580,7 +581,7 @@ impl Assembler
     // string to a u8
     fn two_byte_num_string_to_int(num: String) -> u16
     {
-        let mut returned:u16 = 0;
+        let mut _returned:u16 = 0;
 
         // its a hex number
         if num.chars().next().unwrap() == '$'
@@ -594,7 +595,7 @@ impl Assembler
 
             let hex_num = u16::from_str_radix(hex_num_str, 16).unwrap();
 
-            returned = hex_num;
+            _returned = hex_num;
 
         }
         // not hex
@@ -603,10 +604,10 @@ impl Assembler
             // it won't cause an error
             // but on inputs greater than 2 bytes
             // it will only take the bottom 2 bytes
-            returned = num.parse::<u32>().unwrap() as u16;
+            _returned = num.parse::<u32>().unwrap() as u16;
         }
 
-        returned
+        _returned
     }
 
 
@@ -622,12 +623,9 @@ impl Assembler
     // and a list of bytes after it 
     // will store 2 bytes or 4 byte values 
     // witch can be labels, 
-    fn byte_directive_parser(assembler: &mut Assembler, first_pass:bool)-> Result<(),GeneralError>
+    fn byte_directive_parser(assembler: &mut Assembler, first_pass:bool)-> Result<bool,GeneralError>
     {
-        
 
-
-       
         // peek the token 
         let token_option = assembler.lexical_iterator.peek(0);
         let token;
@@ -656,7 +654,6 @@ impl Assembler
                 // consume a comma if availabe 
                 Assembler::consume_if_available(TokenType::Comma, & mut assembler.lexical_iterator)?;
 
-                println!("{:?}", current_token);
 
                 if current_token.token_type == TokenType::Character || current_token.token_type == TokenType::Num1Bytes 
                 {
@@ -688,10 +685,11 @@ impl Assembler
 
            assembler.current_byte = assembler.current_byte + returned_bytes;
 
-         
+           return Ok(true);
+
         }
 
-        Ok(())
+        Ok(false)
     }
 
 
@@ -702,7 +700,7 @@ impl Assembler
     // will set the org 
     // of the current byte count
     // so that labels will be in relation to that 
-    fn org_directive_parser(assembler:&mut Assembler)-> Result<u32,GeneralError>
+    fn org_directive_parser(assembler:&mut Assembler)-> Result<bool,GeneralError>
     {
 
          // peek the token 
@@ -739,11 +737,12 @@ impl Assembler
 
             Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
 
+            return Ok(true);
          }
 
 
          // doesn't return a byte count
-         Ok(0)
+         Ok(false)
 
     }
     
