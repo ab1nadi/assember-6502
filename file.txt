@@ -1,4 +1,7 @@
-lda $43
+Text:
+ .byte 'it works bitches'
+
+lda #Text
 
 
 CLC

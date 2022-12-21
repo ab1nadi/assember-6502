@@ -524,7 +524,17 @@ impl Assembler
                 // write the character to the file
                 result = file.write(&[character as u8]);
                 
-            }
+            },
+            TokenType::String =>
+            {   
+                // get the string and remove the quotations ""
+                let mut characters = token.value.chars();
+                characters.next();
+                characters.next_back();
+
+                // write the string bytes 
+                result = file.write(&characters.as_str().as_bytes());
+            },
             _ => { }
         }
 
@@ -654,8 +664,7 @@ impl Assembler
                 // consume a comma if availabe 
                 Assembler::consume_if_available(TokenType::Comma, & mut assembler.lexical_iterator)?;
 
-
-                if current_token.token_type == TokenType::Character || current_token.token_type == TokenType::Num1Bytes 
+                 if current_token.token_type == TokenType::Character || current_token.token_type == TokenType::Num1Bytes || current_token.token_type == TokenType::String
                 {
                     tokens.push(current_token);
                     returned_bytes = returned_bytes+1;
@@ -667,7 +676,7 @@ impl Assembler
                 }
                 else 
                 {
-                    return Err(Assembler::create_error("Syntax error", &current_token, vec![TokenType::Character, TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label]))
+                    return Err(Assembler::create_error("Syntax error", &current_token, vec![TokenType::Character, TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label, TokenType::String]))
                 }
 
                 current_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?;
