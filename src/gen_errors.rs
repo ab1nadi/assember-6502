@@ -11,10 +11,11 @@ macro_rules! unwrap_result_or_return_err {
     }
 }
 
-// LexicalError
-// the error that gets
-// returned when something goes
-// wrong
+// General Error
+// an error type
+// i can return from 
+// anything, has a from so 
+// I know wherer the error came from 
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct GeneralError

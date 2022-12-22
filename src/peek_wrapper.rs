@@ -1,5 +1,6 @@
 
-extern crate queues;
+
+
 // a general purpose 
 // wrapper that allows you 
 // to peek an iterator 

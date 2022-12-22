@@ -68,13 +68,11 @@ impl Assembler
         Ok(())
     }
 
-
     // first_pass
     // finds all the labels on logical lines 
+    // while checking syntax
     fn first_pass(&mut self) ->Result<(),GeneralError>
     {
-
-
 
         loop 
         {   
@@ -116,7 +114,8 @@ impl Assembler
     }
 
     // first_pass
-    // finds all the labels on logical lines 
+    // checks syntax while writting everything
+    // to file
     fn second_pass(&mut self) ->Result<(),GeneralError>
     {
         
@@ -164,9 +163,9 @@ impl Assembler
         Ok(())
     }
 
-    
     // directive_parser 
-    // does whatever the directive is supposed to do
+    // parses directives if the directive
+    // given isn't an implemented directive it throws an error
     fn directive_parser(assembler: &mut Assembler, first_pass: bool)-> Result<(),GeneralError>
     {
         let token = assembler.lexical_iterator.peek(0).unwrap()?;
@@ -243,10 +242,11 @@ impl Assembler
 
     }
 
-
-    // instruction_parser_first_pass
+    // instruction_parser
     // essentially this parses an instruction
-    // from the lexical analyzer
+    // from the lexical analyzer and writes it to file
+    // if first_pass=false, replaces labels with their value on the symbol table
+    // TODO: clean up this code a little
     fn instruction_parser(assembler: &mut Assembler, first_pass: bool)-> Result<(),GeneralError>
     {
 
@@ -263,8 +263,6 @@ impl Assembler
             None=>{return Err(Assembler::create_error("Instruction has not been implemented yet!", &instruction_token, vec![]))},
             Some(t)=>{instruction_data_struct = t},
         }
-
-
 
         // gotten_tokens holds the gotten tokens
         let mut gotten_tokens:Vec<Token> = vec![];
@@ -289,7 +287,6 @@ impl Assembler
             // iterate over all the possible tokens in a grammar
             for (i, token_type_grammar) in grammar_vec.1.iter().enumerate()
             {
-
 
                 // only get tokens when we need to
                 if (gotten_tokens.len() as i32)-1 < i as i32
@@ -397,7 +394,6 @@ impl Assembler
     // unwrap_token_option
     // this function unwraps a token option
     // and creates an error if it gets nothing
-    // needs the lexical_analyzer to get the linenumber of the error
     fn unwrap_token_option(token:Option<Result<Token,GeneralError>>, iterator: &mut PeekWrapper<LexicalIterator>)->Result<Token,GeneralError>
     {
         let instrucion_token;
@@ -410,10 +406,8 @@ impl Assembler
         instrucion_token
     }
 
-
     // consume_if_available
-    // consumes a token if it matches the type 
-    // given 
+    // consumes a token if it matches the given TokenType 
     fn consume_if_available(token_type: TokenType, iterator: &mut PeekWrapper<LexicalIterator>)-> Result<(),GeneralError>
     {
         let next_token_option = iterator.peek(0);
@@ -443,7 +437,7 @@ impl Assembler
     }
     
     // cretae_error
-    // creates a general error
+    // with expected and recived tokens
     fn create_error(error_description:&str, recieved:&Token, expected:Vec<TokenType>) ->GeneralError
     {
         let mut expec= "[".to_string();
@@ -458,7 +452,6 @@ impl Assembler
         GeneralError::new(&string,"Assembler")
     }
 
-
     // create_empty_error
     // doesn't have a recived or expected
     // this is used for errors that are assembler based
@@ -468,10 +461,9 @@ impl Assembler
         GeneralError::new(&error_description,"Assembler")
     }
 
-
     // write_to_file
-    // writes to a given file 
-    // a given token
+    // writes to a given file a given token
+    // does different things based on the token type
     fn write_token_to_file(file:&mut File, token: Token, symbol_table: &mut HashMap<String, u32>,) -> Result<(), GeneralError>
     {   
         let mut result = Ok(0);
@@ -538,20 +530,25 @@ impl Assembler
                 // write the string bytes 
                 result = file.write(&characters.as_str().as_bytes());
             },
-            _ => { }
+            _ => { 
+                return Err(Assembler::create_error("Don't know how to write this type to file", &token, vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label, TokenType::Character, TokenType::String]))
+            }
         }
 
 
 
         match result {
-            Err(_)=> Err(Assembler::create_empty_error("Problem writing to file")),
+
+            Err(err)=> {
+                let error_string = format!("Problem writing to file. details: {:?}", err);
+                return Err(Assembler::create_empty_error(&error_string));
+            }
 
             _=> Ok(())
         }
 
 
     }
-
 
     // one_byte_num_string_to_int
     // converts a one byte number
@@ -623,14 +620,12 @@ impl Assembler
         _returned
     }
 
-
     
 
     // possible directives for the assembler 
     ////////////////////////////////////////////////////////////////////////
     /// 
     
-
     // byte_directive
     // accepts .byte or .BYTE 
     // and a list of bytes after it 
@@ -704,9 +699,6 @@ impl Assembler
         Ok(false)
     }
 
-
-
-
     // org_directive_parser 
     // accepts .org or .ORG
     // will set the org 
@@ -720,7 +712,7 @@ impl Assembler
          let token;
          match token_option 
          {
-             None => return Err(Assembler::create_empty_error("Something bad happened in the byte_directive_parser")),
+             None => return Err(Assembler::create_empty_error("Something bad happened in the org_directive_parser")),
              Some(t)=> token = t?,
          }
  
