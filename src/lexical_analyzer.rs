@@ -65,6 +65,7 @@ pub enum TokenType
     Num1Bytes,
     Num2Bytes,
     Character,
+    String,
     Hash,          // tells us it is immidiete addressing 
     Comment,           
     LeftParenth,
@@ -88,6 +89,7 @@ impl fmt::Display for TokenType {
             TokenType::RegA => write!(f, "RegA"),
             TokenType::Num2Bytes => write!(f, "Num2Bytes"),
             TokenType::Num1Bytes => write!(f, "Num1ytes"),
+            TokenType::String => write!(f, "String"),
             TokenType::Character => write!(f, "Character"),
             TokenType::Hash => write!(f, "Hash"),
             TokenType::Comment => write!(f, "Comment"),
@@ -278,7 +280,7 @@ impl LexicalAnalyzer
                 let captured_text = caps.as_str().trim().to_string().clone();
 
                 // remove that item from the current line 
-                self.current_line = self.current_line.replace(&captured_text, "");
+                self.current_line = self.current_line.replacen(&captured_text, "",1);
 
                 
                 if self.current_line == ""
@@ -348,7 +350,9 @@ impl LexicalAnalyzer
                         token_type:TokenType::RightParenth},
             TokenParser{reg: r"^#".to_string(),
                         token_type:TokenType::Hash},
-            TokenParser{reg:r"^\'[a-zA-Z0-9]\'".to_string(),
+            TokenParser{reg:r"^(\'[\S ]+')".to_string(),
+                        token_type:TokenType::String},
+            TokenParser{reg:r"^('[\S ]')".to_string(),
                         token_type:TokenType::Character},
             TokenParser{reg:r"^\:".to_string(),
                         token_type:TokenType::Collon},
@@ -468,6 +472,7 @@ impl<'a> Iterator  for  LexicalIterator
 
         // parse the next token 
         let returned = self.analyzer.parse_next_token();
+
 
         // return the Token
         Some(returned)
