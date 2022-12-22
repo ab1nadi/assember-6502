@@ -1,7 +1,7 @@
 mod instruction;
 
 
-use std::collections::HashMap;
+// crate imports 
 use crate::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
 use crate::lexical_analyzer::TokenType;
@@ -9,6 +9,9 @@ use crate::lexical_analyzer::Token;
 use crate::peek_wrapper::PeekWrapper;
 use crate::gen_errors::GeneralError;
 use crate::lexical_analyzer::LexicalIterator;
+
+// std imports
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::u8;
