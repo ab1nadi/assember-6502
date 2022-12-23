@@ -1,10 +1,10 @@
 
 use std::collections::HashMap;
-use crate::lexical_analyzer::TokenType;
+use crate::assembler::lexical_analyzer::TokenType;
 
 mod grammars{
-    use crate::lexical_analyzer::TokenType;
-    use crate::lexical_analyzer::TokenType::*;
+    use crate::assembler::lexical_analyzer::TokenType;
+    use crate::assembler::lexical_analyzer::TokenType::*;
 
     pub const IMMEDIAT1BYTE:[TokenType; 3] = [Hash, Num1Bytes, EOL];
     pub const ZEROPAGE:     [TokenType; 2] = [Num1Bytes, EOL];

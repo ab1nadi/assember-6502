@@ -1,7 +1,4 @@
 mod assembler;
-mod lexical_analyzer;
-mod peek_wrapper;
-mod gen_errors;
 use std::env;
 use crate::assembler::Assembler;
 

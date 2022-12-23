@@ -1,14 +1,16 @@
 mod instruction;
-
+mod lexical_analyzer;
+mod peek_wrapper;
+mod gen_errors;
 
 // crate imports 
-use crate::lexical_analyzer::LexicalAnalyzer;
+use crate::assembler::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
-use crate::lexical_analyzer::TokenType;
-use crate::lexical_analyzer::Token;
-use crate::peek_wrapper::PeekWrapper;
-use crate::gen_errors::GeneralError;
-use crate::lexical_analyzer::LexicalIterator;
+use crate::assembler::lexical_analyzer::TokenType;
+use crate::assembler::lexical_analyzer::Token;
+use crate::assembler::peek_wrapper::PeekWrapper;
+use crate::assembler::gen_errors::GeneralError;
+use crate::assembler::lexical_analyzer::LexicalIterator;
 
 // std imports
 use std::collections::HashMap;

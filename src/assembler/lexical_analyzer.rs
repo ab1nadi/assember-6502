@@ -2,7 +2,7 @@
 use fancy_regex::Regex;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
-use crate::gen_errors::GeneralError;
+use crate::assembler::gen_errors::GeneralError;
 use std::fmt;
 
 
