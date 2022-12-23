@@ -2,6 +2,10 @@
 use std::collections::HashMap;
 use crate::assembler::lexical_analyzer::TokenType;
 
+
+
+// possible grammars that an instrution 
+// could be 
 mod grammars{
     use crate::assembler::lexical_analyzer::TokenType;
     use crate::assembler::lexical_analyzer::TokenType::*;
@@ -95,6 +99,71 @@ impl Instruction
             ],
         });
 
+        // bpl
+        map.insert("bpl".to_string(), Instruction{
+            string_code:"bpl".to_string(),
+            opcode_grammer: vec![
+                (0x10,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // bmi
+        map.insert("bmi".to_string(), Instruction{
+            string_code:"bmi".to_string(),
+            opcode_grammer: vec![
+                (0x30,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // bvc
+        map.insert("bvc".to_string(), Instruction{
+            string_code:"bvc".to_string(),
+            opcode_grammer: vec![
+                (0x50,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // bvs
+        map.insert("bvs".to_string(), Instruction{
+            string_code:"bvs".to_string(),
+            opcode_grammer: vec![
+                (0x70,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // bcc
+        map.insert("bcc".to_string(), Instruction{
+            string_code:"bcc".to_string(),
+            opcode_grammer: vec![
+                (0x90,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // bcs
+        map.insert("bcs".to_string(), Instruction{
+            string_code:"bcs".to_string(),
+            opcode_grammer: vec![
+                (0xb0,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // bne
+        map.insert("bne".to_string(), Instruction{
+            string_code:"bne".to_string(),
+            opcode_grammer: vec![
+                (0xd0,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // beq
+        map.insert("beq".to_string(), Instruction{
+            string_code:"beq".to_string(),
+            opcode_grammer: vec![
+                (0xf0,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+
 
         // brk
         map.insert("brk".to_string(), Instruction{
@@ -151,7 +220,7 @@ impl Instruction
             opcode_grammer: vec![
                 (0xc6,  grammars::ZEROPAGE.to_vec()),
                 (0xd6,  grammars::ZEROPAGEX.to_vec()),
-                (0xc3,  grammars::ABSOLUTE.to_vec()),
+                (0xce,  grammars::ABSOLUTE.to_vec()),
                 (0xde,  grammars::ABSOLUTEX.to_vec()),
             ],
         });
@@ -309,8 +378,8 @@ impl Instruction
 
 
         // lsr
-        map.insert("ldy".to_string(), Instruction{
-            string_code:"ldy".to_string(),
+        map.insert("lsr".to_string(), Instruction{
+            string_code:"lsr".to_string(),
             opcode_grammer: vec![
                 (0x4a,  grammars::ACCUMULATOR.to_vec()),
                 (0x46,  grammars::ZEROPAGE.to_vec()),
@@ -321,6 +390,244 @@ impl Instruction
         });
 
 
+        // nop
+        map.insert("nop".to_string(), Instruction{
+            string_code:"nop".to_string(),
+            opcode_grammer: vec![
+                (0xea,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+
+        // ora
+        map.insert("ora".to_string(), Instruction{
+            string_code:"ora".to_string(),
+            opcode_grammer: vec![
+                (0x09,  grammars::IMMEDIAT1BYTE.to_vec()),
+                (0x05,  grammars::ZEROPAGE.to_vec()),
+                (0x15,  grammars::ZEROPAGEX.to_vec()),
+                (0x0d,  grammars::ABSOLUTE.to_vec()),
+                (0x1d,  grammars::ABSOLUTEX.to_vec()),
+                (0x19,  grammars::ABSOLUTEY.to_vec()),
+                (0x01,  grammars::INDIRECTX.to_vec()),
+                (0x11,  grammars::INDIRECTY.to_vec()),
+            
+            ],
+        });
+
+
+        // tax
+        map.insert("tax".to_string(), Instruction{
+            string_code:"tax".to_string(),
+            opcode_grammer: vec![
+                (0xaa,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // txa
+        map.insert("txa".to_string(), Instruction{
+            string_code:"txa".to_string(),
+            opcode_grammer: vec![
+                (0x8a,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // dex
+        map.insert("dex".to_string(), Instruction{
+            string_code:"dex".to_string(),
+            opcode_grammer: vec![
+                (0xca,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // inx
+        map.insert("inx".to_string(), Instruction{
+            string_code:"inx".to_string(),
+            opcode_grammer: vec![
+                (0xe8,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // tay
+        map.insert("tay".to_string(), Instruction{
+            string_code:"tay".to_string(),
+            opcode_grammer: vec![
+                (0xa8,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+
+        // tya
+        map.insert("tya".to_string(), Instruction{
+            string_code:"tya".to_string(),
+            opcode_grammer: vec![
+                (0x98,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // dey
+        map.insert("dey".to_string(), Instruction{
+            string_code:"dey".to_string(),
+            opcode_grammer: vec![
+                (0x88,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // iny
+        map.insert("iny".to_string(), Instruction{
+            string_code:"iny".to_string(),
+            opcode_grammer: vec![
+                (0xc8,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // rol
+        map.insert("rol".to_string(), Instruction{
+            string_code:"rol".to_string(),
+            opcode_grammer: vec![
+                (0x2a,  grammars::ACCUMULATOR.to_vec()),
+                (0x26,  grammars::ZEROPAGE.to_vec()),
+                (0x36,  grammars::ZEROPAGEX.to_vec()),
+                (0x2e,  grammars::ABSOLUTE.to_vec()),
+                (0x3e,  grammars::ABSOLUTEX.to_vec()),
+            
+            ],
+        });
+
+
+        // ror
+        map.insert("ror".to_string(), Instruction{
+            string_code:"ror".to_string(),
+            opcode_grammer: vec![
+                (0x6a,  grammars::ACCUMULATOR.to_vec()),
+                (0x66,  grammars::ZEROPAGE.to_vec()),
+                (0x76,  grammars::ZEROPAGEX.to_vec()),
+                (0x6e,  grammars::ABSOLUTE.to_vec()),
+                (0x7e,  grammars::ABSOLUTEX.to_vec()),
+            
+            ],
+        });
+
+
+        // rti
+        map.insert("rti".to_string(), Instruction{
+            string_code:"rti".to_string(),
+            opcode_grammer: vec![
+                (0x40,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+
+        // rts
+        map.insert("rts".to_string(), Instruction{
+            string_code:"rts".to_string(),
+            opcode_grammer: vec![
+                (0x60,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+
+
+        // sbc
+        map.insert("sbc".to_string(), Instruction{
+            string_code:"sbc".to_string(),
+            opcode_grammer: vec![
+                (0xe9,  grammars::IMMEDIAT1BYTE.to_vec()),
+                (0xe5,  grammars::ZEROPAGE.to_vec()),
+                (0xf5,  grammars::ZEROPAGEX.to_vec()),
+                (0xed,  grammars::ABSOLUTE.to_vec()),
+                (0xfd,  grammars::ABSOLUTEX.to_vec()),
+                (0xf9,  grammars::ABSOLUTEY.to_vec()),
+                (0xe1,  grammars::INDIRECTX.to_vec()),
+                (0xf1,  grammars::INDIRECTY.to_vec()),
+            
+            ],
+        });
+
+
+        // sta
+        map.insert("sta".to_string(), Instruction{
+            string_code:"sta".to_string(),
+            opcode_grammer: vec![
+                (0x85,  grammars::ZEROPAGE.to_vec()),
+                (0x95,  grammars::ZEROPAGEX.to_vec()),
+                (0x8d,  grammars::ABSOLUTE.to_vec()),
+                (0x9d,  grammars::ABSOLUTEX.to_vec()),
+                (0x99,  grammars::ABSOLUTEY.to_vec()),
+                (0x81,  grammars::INDIRECTX.to_vec()),
+                (0x91,  grammars::INDIRECTY.to_vec()),
+            
+            ],
+        });
+
+         // txs
+         map.insert("txs".to_string(), Instruction{
+            string_code:"txs".to_string(),
+            opcode_grammer: vec![
+                (0x9a,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // tsx
+        map.insert("tsx".to_string(), Instruction{
+            string_code:"tsx".to_string(),
+            opcode_grammer: vec![
+                (0xba,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // pha
+        map.insert("pha".to_string(), Instruction{
+            string_code:"pha".to_string(),
+            opcode_grammer: vec![
+                (0x48,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // pla
+        map.insert("pla".to_string(), Instruction{
+            string_code:"pla".to_string(),
+            opcode_grammer: vec![
+                (0x68,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+        // php
+        map.insert("php".to_string(), Instruction{
+            string_code:"php".to_string(),
+            opcode_grammer: vec![
+                (0x08,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+         // plp
+         map.insert("plp".to_string(), Instruction{
+            string_code:"plp".to_string(),
+            opcode_grammer: vec![
+                (0x28,  grammars::EMPTY.to_vec()),
+            ],
+        });
+
+
+        // stx
+        map.insert("stx".to_string(), Instruction{
+            string_code:"stx".to_string(),
+            opcode_grammer: vec![
+                (0x86,  grammars::ZEROPAGE.to_vec()),
+                (0x96,  grammars::ZEROPAGEY.to_vec()),
+                (0x8e,  grammars::ABSOLUTE.to_vec()),
+              ],
+        });
+
+        // sty
+        map.insert("sty".to_string(), Instruction{
+            string_code:"sty".to_string(),
+            opcode_grammer: vec![
+                (0x84,  grammars::ZEROPAGE.to_vec()),
+                (0x94,  grammars::ZEROPAGEX.to_vec()),
+                (0x8c,  grammars::ABSOLUTE.to_vec()),
+              ],
+        });
 
 
 

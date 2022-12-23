@@ -2,8 +2,10 @@
 use fancy_regex::Regex;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
-use crate::assembler::gen_errors::GeneralError;
 use std::fmt;
+
+
+use crate::assembler::gen_errors::GeneralError;
 
 
 
