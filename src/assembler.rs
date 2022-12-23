@@ -49,7 +49,7 @@ impl Assembler
         Ok(Assembler 
         {
             read_file_name: file_name.to_string(),
-            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new(file_name.to_string(), true).unwrap().get_iterator(),3),
+            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new(file_name.to_string(), true)?.get_iterator(),3),
             symbol_table: HashMap::new(),
             current_byte: 0,
             instruction_table: Instruction::get_map(),
@@ -466,12 +466,12 @@ impl Assembler
     // does different things based on the token type
     fn write_token_to_file(file:&mut File, token: Token, symbol_table: &mut HashMap<String, u32>,) -> Result<(), GeneralError>
     {   
-        let mut result = Ok(0);
+        let mut _result = Ok(0);
         match token.token_type
         {
             TokenType::Num1Bytes => 
             {
-                result = file.write(&[Assembler::one_byte_num_string_to_int(token.value)]);
+                _result = file.write(&[Assembler::one_byte_num_string_to_int(token.value)]);
             },
             TokenType::Num2Bytes =>
             {
@@ -483,7 +483,7 @@ impl Assembler
                 let upper_byte:u8 = (two_byte_num >> 8) as u8;
 
                 // since it is little endian we store the lower byte first
-                result = file.write(&[lower_byte, upper_byte]);
+                _result = file.write(&[lower_byte, upper_byte]);
             },
             TokenType::Label =>
             {
@@ -503,7 +503,7 @@ impl Assembler
                 let upper_byte:u8 = (two_byte_num >> 8) as u8;
 
                 // since it is little endian we store the lower byte first
-                result = file.write(&[lower_byte, upper_byte]);
+                _result = file.write(&[lower_byte, upper_byte]);
             },
             TokenType::Character =>
             {
@@ -517,7 +517,7 @@ impl Assembler
                 let character = iter.next().unwrap();
 
                 // write the character to the file
-                result = file.write(&[character as u8]);
+                _result = file.write(&[character as u8]);
                 
             },
             TokenType::String =>
@@ -528,16 +528,15 @@ impl Assembler
                 characters.next_back();
 
                 // write the string bytes 
-                result = file.write(&characters.as_str().as_bytes());
+                _result = file.write(&characters.as_str().as_bytes());
             },
             _ => { 
-                return Err(Assembler::create_error("Don't know how to write this type to file", &token, vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label, TokenType::Character, TokenType::String]))
             }
         }
 
 
 
-        match result {
+        match _result {
 
             Err(err)=> {
                 let error_string = format!("Problem writing to file. details: {:?}", err);

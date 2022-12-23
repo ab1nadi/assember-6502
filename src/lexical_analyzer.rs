@@ -134,7 +134,7 @@ impl LexicalAnalyzer
         let file_;
         match file_result
         {
-            Err(_) => return Err(LexicalAnalyzer::error("Problem opening file")),
+            Err(_) => return Err(LexicalAnalyzer::error("File doesn't exist!")),
             Ok(f) => file_ = f,
         }
 

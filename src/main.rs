@@ -2,16 +2,38 @@ mod assembler;
 mod lexical_analyzer;
 mod peek_wrapper;
 mod gen_errors;
-
+use std::env;
 use crate::assembler::Assembler;
 
 fn main() {
 
-    //let mut analyzer = LexicalAnalyzer::new("file.txt".to_string(),true).unwrap();
+    let args: Vec<String> = env::args().collect();
 
-    let mut assembler = Assembler::new("file.txt", "a").unwrap();
+    // if args aren't big enough return
+    if args.len() < 3
+    {
+        println!("Expected 2 arguments: input file name and output file name");
+        return;
+    }
 
-    let result = assembler.run();
+    let file_name = &args[1];
+    let out_put = &args[2];
+    
+
+    let result;
+    let ass_result = Assembler::new(file_name, out_put);
+
+
+    if let Err(err) = ass_result 
+    {
+        result = Err(err);
+    }
+    else 
+    {   
+        // we know its not an error
+        // so it can just be unwraped
+        result = ass_result.unwrap().run();
+    }
 
     match result 
     {
