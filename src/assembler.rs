@@ -297,10 +297,9 @@ impl Assembler
                 }
 
                 // allow a type coercion from label to 2bytes num because, ultimately,  thats what labels are
-                if gotten_tokens[i].token_type == TokenType::Label && *token_type_grammar == TokenType::Num1Bytes
+                if gotten_tokens[i].token_type == TokenType::Label && *token_type_grammar == TokenType::Num2Bytes
                 {
                     match_count = match_count +1;
-
                 }
                 // no cohersion so just check if they equal or not
                 else if gotten_tokens[i].token_type != *token_type_grammar
@@ -308,22 +307,21 @@ impl Assembler
                     matched = false;
                     break;
                 }
-                else 
+
+                // if the current token is a number it needs to be written to output so we
+                // add it to the byte count
+                if (gotten_tokens[i].token_type == TokenType::Label && *token_type_grammar == TokenType::Num2Bytes) || gotten_tokens[i].token_type == TokenType::Num2Bytes
                 {
-                    // if the current token is a number it needs to be written to output so we
-                    // add it to the byte count
-                    if (gotten_tokens[i].token_type == TokenType::Label && *token_type_grammar == TokenType::Num2Bytes) || gotten_tokens[i].token_type == TokenType::Num2Bytes
-                    {
-                        total_bytes = total_bytes + 1;
-                    }
-                    else if gotten_tokens[i].token_type == TokenType::Num2Bytes 
-                    {
-                        total_bytes = total_bytes + 2;
-                    }
-
-
-                    match_count = match_count +1;
+                    total_bytes = total_bytes + 2;
+                    println!("total bytes + 2");
                 }
+                else if gotten_tokens[i].token_type == TokenType::Num1Bytes 
+                {
+                    total_bytes = total_bytes + 1;
+
+                    println!("total bytes + 1");
+                }
+
             }   
 
 
@@ -369,6 +367,7 @@ impl Assembler
             // add the bytes to the assemblers current byte
             assembler.current_byte = assembler.current_byte + returned_bytes;
 
+            println!("current byte: {}", assembler.current_byte);
 
             Ok(())
         }

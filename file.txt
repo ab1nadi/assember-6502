@@ -1,9 +1,11 @@
-Text:
- .byte 'it works bitches'
+lda label
 
-lda #Text
+sta label2
+
+lda label2
 
 
-CLC
-
-brk
+label:
+.byte $58
+label2:
+.byte $47
