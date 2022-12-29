@@ -313,13 +313,10 @@ impl Assembler
                 if (gotten_tokens[i].token_type == TokenType::Label && *token_type_grammar == TokenType::Num2Bytes) || gotten_tokens[i].token_type == TokenType::Num2Bytes
                 {
                     total_bytes = total_bytes + 2;
-                    println!("total bytes + 2");
                 }
                 else if gotten_tokens[i].token_type == TokenType::Num1Bytes 
                 {
                     total_bytes = total_bytes + 1;
-
-                    println!("total bytes + 1");
                 }
 
             }   
@@ -366,8 +363,6 @@ impl Assembler
 
             // add the bytes to the assemblers current byte
             assembler.current_byte = assembler.current_byte + returned_bytes;
-
-            println!("current byte: {}", assembler.current_byte);
 
             Ok(())
         }
