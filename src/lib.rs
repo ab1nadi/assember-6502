@@ -2,6 +2,7 @@
 mod assembler;
 use std::env;
 use crate::assembler::Assembler;
+use wasm_bindgen::prelude::*;
 
 
 pub fn run()
