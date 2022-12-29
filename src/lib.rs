@@ -1,9 +1,11 @@
+
 mod assembler;
 use std::env;
 use crate::assembler::Assembler;
 
-fn main() {
 
+pub fn run()
+{
     let args: Vec<String> = env::args().collect();
 
     // if args aren't big enough return
