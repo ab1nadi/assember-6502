@@ -1,3 +1,7 @@
+# WASM Host Desc.
+Basically the idea with this branch is to create a hosted version of this project that uses web assembly. 
+That way I can demo that this thing actually works. It still needs a lot of work. 
+
 # assembler-6502
 A basic assembler for the 6502 processor. I eventually plan to use this with my 6502 emulator. 
 Has built in syntax analysis, for easy detection of  labels, directives, opcodes, or operands 
