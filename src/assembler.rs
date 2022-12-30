@@ -15,6 +15,7 @@ use crate::assembler::lexical_analyzer::LexicalIterator;
 // std imports
 use std::collections::HashMap;
 use std::fs::File;
+use std::fs;
 use std::io::prelude::*;
 use std::u8;
 use std::u16;
@@ -27,7 +28,7 @@ pub struct Assembler
     symbol_table: HashMap<String, u32>,
     current_byte: u32,
     instruction_table: HashMap<String,Instruction>,
-    file_writer: File
+    pub file_writer: File,
 }
 
 
@@ -57,6 +58,62 @@ impl Assembler
             instruction_table: Instruction::get_map(),
             file_writer: file,
         })
+    }
+
+
+    // new_from_string
+    // return a new assembler from a string of assembly
+    pub fn new_from_string(assembly_str:String) ->Result<Assembler, GeneralError> 
+    {
+        let  file_result = File::create("tempfile.obj");
+        let  file;
+
+        match file_result 
+        {
+            Ok(f) => file = f,
+            Err(err) => return Err(Assembler::create_empty_error(err.to_string().as_str()))
+        }
+
+     
+        Ok(Assembler 
+        {
+            read_file_name: "tempfile.as".to_string(),
+            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new(assembly_str, true)?.get_iterator(),3),
+            symbol_table: HashMap::new(),
+            current_byte: 0,
+            instruction_table: Instruction::get_map(),
+            file_writer: file,
+        })
+    }
+
+    // get_obj_str
+    // gets the object code as a string
+    // also deletes the file
+    pub fn get_obj_str(& mut self) ->Result<String, GeneralError>
+    {
+        let mut returned= String::new();
+
+
+        let result =self.file_writer.read_to_string(&mut returned);
+
+
+        if let Err(_) = result 
+        {
+            return Err(Assembler::create_empty_error("Problem converting object file to string"));
+        }
+
+        
+        let result = fs::remove_file("tempfile.obj");
+
+        if let Err(_) = result 
+        {
+            return Err(Assembler::create_empty_error("Problem deleting temp object file"));
+        }
+
+
+
+        Ok(returned)
+
     }
 
     // run 
