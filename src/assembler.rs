@@ -2,6 +2,7 @@ mod instruction;
 mod lexical_analyzer;
 mod peek_wrapper;
 mod gen_errors;
+use tempfile::tempfile;
 
 // crate imports 
 use crate::assembler::lexical_analyzer::LexicalAnalyzer;
@@ -65,7 +66,7 @@ impl Assembler
     // return a new assembler from a string of assembly
     pub fn new_from_string(assembly_str:String) ->Result<Assembler, GeneralError> 
     {
-        let  file_result = File::create("tempfile.obj");
+        let  file_result = tempfile();
         let  file;
 
         match file_result 
@@ -73,12 +74,11 @@ impl Assembler
             Ok(f) => file = f,
             Err(err) => return Err(Assembler::create_empty_error(err.to_string().as_str()))
         }
-
      
         Ok(Assembler 
         {
             read_file_name: "tempfile.as".to_string(),
-            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new(assembly_str, true)?.get_iterator(),3),
+            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new_from_file(&file, true)?.get_iterator(),3),
             symbol_table: HashMap::new(),
             current_byte: 0,
             instruction_table: Instruction::get_map(),
@@ -180,7 +180,7 @@ impl Assembler
         
         // reset the lexical analyzer 
         // so we can do another pass
-        self.lexical_iterator = PeekWrapper::new(LexicalAnalyzer::new(self.read_file_name.to_string(), true).unwrap().get_iterator(),3);
+        self.lexical_iterator = PeekWrapper::new(LexicalAnalyzer::new_from_file(self., true)?.get_iterator(),3);
         
         self.current_byte = 0;
 

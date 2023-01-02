@@ -1,5 +1,7 @@
 
 use fancy_regex::Regex;
+use tempfile::tempfile;
+
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 use std::fmt;
@@ -163,23 +165,13 @@ impl LexicalAnalyzer
     // returns a new lexical 
     // analyzer but its going to parse a string 
     // instead of a file using a temp file
-    pub fn new_from_string(assembly_string:String, remove_comm: bool) -> Result<LexicalAnalyzer, GeneralError>
+    pub fn new_from_file(f: &File, remove_comm: bool) -> Result<LexicalAnalyzer, GeneralError>
     {
-
-
-        let  file_result = File::create("tempfile.as");
-        let  file;
-
-        match file_result 
-        {
-            Ok(f) => file = f,
-            Err(err) => return Err(GeneralError::new(err.to_string().as_str(), "lexical"))
-        }
 
         
         Ok(LexicalAnalyzer 
         {
-            reader: Box::new(BufReader::new(file)),
+            reader: Box::new(BufReader::new(f)),
             current_line: "".to_string(),
             return_eof: false,
             returned_eof: false,
@@ -434,17 +426,6 @@ impl LexicalAnalyzer
         if self.return_eof
         {
 
-            // if we are working with 
-            // a temp file delete that too
-            if self.temp_file
-            {
-                let result = fs::remove_file("tempfile.as");
-
-                if let Err(e) = result 
-                {
-                    return Some(Err(GeneralError { from: "lexical".to_string(), details: "problem deleting temporary file".to_string()}))
-                }
-            }
 
             self.returned_eof = true;
             return Some(Ok(Token{
