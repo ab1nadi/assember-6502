@@ -2,6 +2,7 @@ mod instruction;
 mod lexical_analyzer;
 mod peek_wrapper;
 mod gen_errors;
+use tempfile::tempfile;
 
 // crate imports 
 use crate::assembler::lexical_analyzer::LexicalAnalyzer;
@@ -144,7 +145,7 @@ impl<'a> Assembler<'a>
                 {
                   Assembler::instruction_parser( self, false)?;
                 },
-                TokenType::EOF =>
+                 TokenType::EOF =>
                 {
                     break;
                 }
