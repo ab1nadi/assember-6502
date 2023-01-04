@@ -26,7 +26,7 @@ pub struct Assembler<'a>
     symbol_table: HashMap<String, u32>,
     current_byte: u32,
     instruction_table: HashMap<String,Instruction>,
-    object_code: String
+    pub object_code: String
 }
 
 
@@ -51,10 +51,6 @@ impl<'a> Assembler<'a>
     // get_obj_str
     // gets the object code as a string
     // also deletes the file
-    pub fn get_obj_str(& mut self) ->Result<String, GeneralError>
-    {
-        Ok(self.object_code.to_string())
-    }
 
     // run 
     // runs the assembler 
@@ -62,7 +58,6 @@ impl<'a> Assembler<'a>
     {
 
         self.first_pass()?;
-        self.second_pass()?;
 
         Ok(())
     }

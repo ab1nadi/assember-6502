@@ -3,8 +3,19 @@ mod assembler;
 use crate::assembler::Assembler;
 use wasm_bindgen::prelude::*;
 
+
+#[wasm_bindgen]
+extern {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
 #[wasm_bindgen]
 pub fn run(assembly_text: &str)->String {
+
+
     let mut ass_text = assembly_text.to_string();
     let ass_result = Assembler::new(&mut ass_text);
     let mut ass;
@@ -20,7 +31,6 @@ pub fn run(assembly_text: &str)->String {
         ass = ass_result.unwrap();
     }
 
-
     // unwrap the running of the assembler
     let result = ass.run();
 
@@ -31,15 +41,8 @@ pub fn run(assembly_text: &str)->String {
 
 
     // unwrap the parsing of the object file
-    let result = ass.get_obj_str();
+    ass.object_code
 
-    if let Err(err) = result
-    {
-        return err.to_string();
-    }
-    else  
-    {
-        return result.unwrap();
-    }
+    
 
 }

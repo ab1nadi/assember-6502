@@ -197,22 +197,16 @@ impl<'a>  LexicalAnalyzer
             // we have gotten a new file line 
             // read from the file reader a line 
 
-
-            if let Some(line) = self.reader.lines().next()
+            if let Some(index) = self.reader.find('\n')
             {
-                self.current_line = line.to_string();      
+                self.current_line = self.reader.as_str()[0..index].trim().to_string();
+                self.reader = self.reader.as_str()[index..].trim().to_string();
             }
-            else  
+            else 
             {
                 self.return_eof = true;
-                self.current_line = "".to_string();
+                return Ok(());
             }
-
-
-            // trim the line 
-            self.current_line = self.current_line.trim().to_string();
-
-
 
         }
 

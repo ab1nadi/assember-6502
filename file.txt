@@ -1,11 +1,1 @@
-lda label
-
-sta label2
-
-lda label2
-
-
-label:
-.byte $58
-label2:
-.byte $47
+sta #$ff

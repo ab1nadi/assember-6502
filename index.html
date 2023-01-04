@@ -6,9 +6,10 @@
   </head>
   <body>
     <script type="module">
+
       import init, { run } from "./pkg/asm_6502.js";
       init().then(() => {
-        console.log(run("sta #$FF "));
+        console.log(run("lda $ff"));
       });
     </script>
   </body>
