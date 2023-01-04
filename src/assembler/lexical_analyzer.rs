@@ -1,9 +1,6 @@
 
 use fancy_regex::Regex;
-use std::fs::File;
-use std::io::{BufReader, BufRead};
 use std::fmt;
-use std::fs;
 use crate::assembler::gen_errors::GeneralError;
 
 
@@ -13,9 +10,9 @@ use crate::assembler::gen_errors::GeneralError;
 // the LexicalAnalyzer
 // public struct 
 #[derive(Debug)]
-pub  struct LexicalAnalyzer
+pub struct LexicalAnalyzer
 {
-    reader: Box<BufReader<File>>,
+    reader: String,
     current_line: String, 
     return_eof: bool,                   // the difference between these is weather eof has or hasnt been returned yet
     returned_eof: bool,                 //
@@ -25,7 +22,6 @@ pub  struct LexicalAnalyzer
     pub file_line: u32,
     logical_line: u32,
     current_line_new: bool,
-    temp_file: bool,
 }
 
 // token
@@ -122,7 +118,7 @@ pub struct TokenParser
 
 // the implementaion for
 // the lexical analyzer
-impl LexicalAnalyzer
+impl<'a>  LexicalAnalyzer
 {
     // exposed api /////////////////////////////////////////////
     ////////////////////////////////////////////////////////////
@@ -130,20 +126,12 @@ impl LexicalAnalyzer
     // new 
     // returns a new lexical 
     // analyzer
-    pub fn new(file_name:String, remove_comm: bool) -> Result<LexicalAnalyzer, GeneralError>
+    pub fn new(lexical_text:String, remove_comm: bool) -> Result<LexicalAnalyzer , GeneralError>
     {
-        let file_result = File::open(&file_name);
-        let file_;
-        match file_result
-        {
-            Err(_) => return Err(LexicalAnalyzer::error("File doesn't exist!")),
-            Ok(f) => file_ = f,
-        }
 
-        
         Ok(LexicalAnalyzer 
         {
-            reader: Box::new(BufReader::new(file_)),
+            reader: lexical_text,
             current_line: "".to_string(),
             return_eof: false,
             returned_eof: false,
@@ -153,45 +141,11 @@ impl LexicalAnalyzer
             logical_line:0,
             file_line:0,
             current_line_new: true,
-            temp_file: false
         })
     }
 
 
 
-    // new 
-    // returns a new lexical 
-    // analyzer but its going to parse a string 
-    // instead of a file using a temp file
-    pub fn new_from_string(assembly_string:String, remove_comm: bool) -> Result<LexicalAnalyzer, GeneralError>
-    {
-
-
-        let  file_result = File::create("tempfile.as");
-        let  file;
-
-        match file_result 
-        {
-            Ok(f) => file = f,
-            Err(err) => return Err(GeneralError::new(err.to_string().as_str(), "lexical"))
-        }
-
-        
-        Ok(LexicalAnalyzer 
-        {
-            reader: Box::new(BufReader::new(file)),
-            current_line: "".to_string(),
-            return_eof: false,
-            returned_eof: false,
-            return_eol: false,
-            token_parsers: LexicalAnalyzer::get_token_parsers(),
-            remove_comments: remove_comm,
-            logical_line:0,
-            file_line:0,
-            current_line_new: true,
-            temp_file: true,
-        })
-    }
 
     // reset
     // essentially this resets
@@ -242,25 +196,23 @@ impl LexicalAnalyzer
             self.current_line_new = true;
             // we have gotten a new file line 
             // read from the file reader a line 
-            match self.reader.read_line(&mut self.current_line) {
 
-                // something bad happened 
-                Err(_) => {
-                    return Err(LexicalAnalyzer::error("Something bad happened reading the file!"));
-                },
-                // eof
-                // just return 
-                Ok(0) => {
-                    self.return_eof = true;
-                    return Ok(());
-                }
-                // there is actual data 
-                _ => {
-                    // trim it 
-                    // this will remove newlines and make it an empty string if there is nothing there 
-                    self.current_line = self.current_line.trim().to_string();
-                }
+
+            if let Some(line) = self.reader.lines().next()
+            {
+                self.current_line = line.to_string();      
             }
+            else  
+            {
+                self.return_eof = true;
+                self.current_line = "".to_string();
+            }
+
+
+            // trim the line 
+            self.current_line = self.current_line.trim().to_string();
+
+
 
         }
 
@@ -434,17 +386,6 @@ impl LexicalAnalyzer
         if self.return_eof
         {
 
-            // if we are working with 
-            // a temp file delete that too
-            if self.temp_file
-            {
-                let result = fs::remove_file("tempfile.as");
-
-                if let Err(e) = result 
-                {
-                    return Some(Err(GeneralError { from: "lexical".to_string(), details: "problem deleting temporary file".to_string()}))
-                }
-            }
 
             self.returned_eof = true;
             return Some(Ok(Token{
@@ -490,7 +431,7 @@ pub struct LexicalIterator
 //LexicalIterator
 // implementation
 // just returns a lexical iterator
-impl<'a> LexicalIterator
+impl LexicalIterator
 {
     fn new(lex: LexicalAnalyzer) -> LexicalIterator
     {
@@ -503,7 +444,7 @@ impl<'a> LexicalIterator
 // so that we can iterate over tokens
 // infact I expect this to be the only 
 // to interact with tokens
-impl<'a> Iterator  for  LexicalIterator
+impl Iterator  for  LexicalIterator
 {
 
     type Item=Result<Token, GeneralError>;

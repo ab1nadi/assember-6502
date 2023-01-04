@@ -14,75 +14,37 @@ use crate::assembler::lexical_analyzer::LexicalIterator;
 
 // std imports
 use std::collections::HashMap;
-use std::fs::File;
-use std::fs;
-use std::io::prelude::*;
+
 use std::u8;
 use std::u16;
 
 // holds the assembler main struct 
-pub struct Assembler
+pub struct Assembler<'a>
 {
-    read_file_name: String,
+    assembly_string: &'a String,
     lexical_iterator: PeekWrapper<LexicalIterator>,
     symbol_table: HashMap<String, u32>,
     current_byte: u32,
     instruction_table: HashMap<String,Instruction>,
-    pub file_writer: File,
+    object_code: String
 }
 
 
-impl Assembler
+impl<'a> Assembler<'a>
 {
     // new 
     // return a new assembler 
-    pub fn new(file_name: &str, output_file_name: &str) -> Result<Assembler, GeneralError>
+    pub fn new(assembly_string:&mut String) -> Result<Assembler, GeneralError>
     {
-        let  file_result = File::create(output_file_name);
-        let  file;
-
-        match file_result 
-        {
-            Ok(f) => file = f,
-            Err(err) => return Err(Assembler::create_empty_error(err.to_string().as_str()))
-        }
-        
-    
      
         Ok(Assembler 
         {
-            read_file_name: file_name.to_string(),
-            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new(file_name.to_string(), true)?.get_iterator(),3),
+            assembly_string: assembly_string,
+            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new( assembly_string.to_string(), true)?.get_iterator(),3),
             symbol_table: HashMap::new(),
             current_byte: 0,
             instruction_table: Instruction::get_map(),
-            file_writer: file,
-        })
-    }
-
-
-    // new_from_string
-    // return a new assembler from a string of assembly
-    pub fn new_from_string(assembly_str:String) ->Result<Assembler, GeneralError> 
-    {
-        let  file_result = File::create("tempfile.obj");
-        let  file;
-
-        match file_result 
-        {
-            Ok(f) => file = f,
-            Err(err) => return Err(Assembler::create_empty_error(err.to_string().as_str()))
-        }
-
-     
-        Ok(Assembler 
-        {
-            read_file_name: "tempfile.as".to_string(),
-            lexical_iterator: PeekWrapper::new(LexicalAnalyzer::new(assembly_str, true)?.get_iterator(),3),
-            symbol_table: HashMap::new(),
-            current_byte: 0,
-            instruction_table: Instruction::get_map(),
-            file_writer: file,
+            object_code: String::new(),
         })
     }
 
@@ -91,29 +53,7 @@ impl Assembler
     // also deletes the file
     pub fn get_obj_str(& mut self) ->Result<String, GeneralError>
     {
-        let mut returned= String::new();
-
-
-        let result =self.file_writer.read_to_string(&mut returned);
-
-
-        if let Err(_) = result 
-        {
-            return Err(Assembler::create_empty_error("Problem converting object file to string"));
-        }
-
-        
-        let result = fs::remove_file("tempfile.obj");
-
-        if let Err(_) = result 
-        {
-            return Err(Assembler::create_empty_error("Problem deleting temp object file"));
-        }
-
-
-
-        Ok(returned)
-
+        Ok(self.object_code.to_string())
     }
 
     // run 
@@ -180,7 +120,7 @@ impl Assembler
         
         // reset the lexical analyzer 
         // so we can do another pass
-        self.lexical_iterator = PeekWrapper::new(LexicalAnalyzer::new(self.read_file_name.to_string(), true).unwrap().get_iterator(),3);
+        self.lexical_iterator = PeekWrapper::new(LexicalAnalyzer::new(self.assembly_string.to_string(), true).unwrap().get_iterator(),3);
         
         self.current_byte = 0;
 
@@ -408,12 +348,12 @@ impl Assembler
             if !first_pass 
             {
                     // write the opcode
-                    assembler.file_writer.write(&[best_match.0]).unwrap();
+                    assembler.object_code.push(best_match.0 as char);
 
                     // write the tokens
                     for token in gotten_tokens
                     {
-                        Assembler::write_token_to_file(&mut assembler.file_writer, token, &mut assembler.symbol_table)?;
+                        Assembler::write_token_to_file(&mut assembler.object_code, token, &mut assembler.symbol_table)?;
                     }
             }
             
@@ -517,14 +457,13 @@ impl Assembler
     // write_to_file
     // writes to a given file a given token
     // does different things based on the token type
-    fn write_token_to_file(file:&mut File, token: Token, symbol_table: &mut HashMap<String, u32>,) -> Result<(), GeneralError>
+    fn write_token_to_file(file:&mut String, token: Token, symbol_table: &mut HashMap<String, u32>,) -> Result<(), GeneralError>
     {   
-        let mut _result = Ok(0);
         match token.token_type
         {
             TokenType::Num1Bytes => 
             {
-                _result = file.write(&[Assembler::one_byte_num_string_to_int(token.value)]);
+                file.push(Assembler::one_byte_num_string_to_int(token.value) as char)
             },
             TokenType::Num2Bytes =>
             {
@@ -536,7 +475,8 @@ impl Assembler
                 let upper_byte:u8 = (two_byte_num >> 8) as u8;
 
                 // since it is little endian we store the lower byte first
-                _result = file.write(&[lower_byte, upper_byte]);
+                file.push(lower_byte as char);
+                file.push(upper_byte as char);
             },
             TokenType::Label =>
             {
@@ -556,7 +496,8 @@ impl Assembler
                 let upper_byte:u8 = (two_byte_num >> 8) as u8;
 
                 // since it is little endian we store the lower byte first
-                _result = file.write(&[lower_byte, upper_byte]);
+                file.push(lower_byte as char);
+                file.push(upper_byte as char);
             },
             TokenType::Character =>
             {
@@ -570,7 +511,7 @@ impl Assembler
                 let character = iter.next().unwrap();
 
                 // write the character to the file
-                _result = file.write(&[character as u8]);
+                file.push(character);
                 
             },
             TokenType::String =>
@@ -581,24 +522,13 @@ impl Assembler
                 characters.next_back();
 
                 // write the string bytes 
-                _result = file.write(&characters.as_str().as_bytes());
+                file.push_str(characters.as_str());
             },
             _ => { 
             }
         }
 
-
-
-        match _result {
-
-            Err(err)=> {
-                let error_string = format!("Problem writing to file. details: {:?}", err);
-                return Err(Assembler::create_empty_error(&error_string));
-            }
-
-            _=> Ok(())
-        }
-
+            Ok(())
 
     }
 
@@ -737,7 +667,7 @@ impl Assembler
            {
                 for token in tokens 
                 {
-                Assembler::write_token_to_file(&mut assembler.file_writer, token, &mut assembler.symbol_table)?;
+                Assembler::write_token_to_file(&mut assembler.object_code, token, &mut assembler.symbol_table)?;
                 }
            }
 

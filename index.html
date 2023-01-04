@@ -8,7 +8,7 @@
     <script type="module">
       import init, { run } from "./pkg/asm_6502.js";
       init().then(() => {
-        console.log(run("str"));
+        console.log(run("sta #$FF "));
       });
     </script>
   </body>
