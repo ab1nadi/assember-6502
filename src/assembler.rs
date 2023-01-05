@@ -2,7 +2,18 @@ mod instruction;
 mod lexical_analyzer;
 mod peek_wrapper;
 mod gen_errors;
-use tempfile::tempfile;
+
+
+
+extern crate web_sys;
+
+// A macro to provide `println!(..)`-style syntax for `console.log` logging.
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
+
 
 // crate imports 
 use crate::assembler::lexical_analyzer::LexicalAnalyzer;
@@ -57,8 +68,8 @@ impl<'a> Assembler<'a>
     // runs the assembler 
     pub fn run(& mut self ) -> Result<(),GeneralError>
     {
-
         self.first_pass()?;
+        self.second_pass()?;
 
         Ok(())
     }
@@ -68,7 +79,6 @@ impl<'a> Assembler<'a>
     // while checking syntax
     fn first_pass(&mut self) ->Result<(),GeneralError>
     {
-
         loop 
         {   
             // peek the next token 
@@ -79,6 +89,8 @@ impl<'a> Assembler<'a>
                 None => break,
                 Some(t) => token = t?,
             }
+
+            log!("{}", token.value);
 
             match token.token_type
             {   

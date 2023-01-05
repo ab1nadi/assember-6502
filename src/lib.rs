@@ -39,10 +39,8 @@ pub fn run(assembly_text: &str)->String {
         return err.to_string();
     }
 
-
-    // unwrap the parsing of the object file
-    ass.object_code
-
     
+
+   return  ass.object_code;
 
 }

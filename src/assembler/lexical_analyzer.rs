@@ -3,7 +3,14 @@ use fancy_regex::Regex;
 use std::fmt;
 use crate::assembler::gen_errors::GeneralError;
 
+extern crate web_sys;
 
+// A macro to provide `println!(..)`-style syntax for `console.log` logging.
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
 
 
 
@@ -184,8 +191,9 @@ impl<'a>  LexicalAnalyzer
     // get_line
     // private function that
     // getsline 
-    fn get_line(& mut self) -> Result<(), GeneralError>
+    fn get_line(& mut self) 
     {
+
 
         // if the current line is empty
         // keep getting new lines 
@@ -201,14 +209,26 @@ impl<'a>  LexicalAnalyzer
             {
                 self.current_line = self.reader.as_str()[0..index].trim().to_string();
                 self.reader = self.reader.as_str()[index..].trim().to_string();
+      
             }
             else 
             {
-                self.return_eof = true;
-                return Ok(());
+                
+
+                if self.reader.as_str().trim() != "" 
+                {
+                    self.current_line = self.reader.as_str().trim().to_string();
+                    self.reader = "".to_string();                              
+                }
+                else 
+                {
+                    self.return_eof = true;
+                    return;
+                }
             }
 
         }
+
 
         if self.current_line == ""
         {
@@ -216,7 +236,6 @@ impl<'a>  LexicalAnalyzer
 
         }
 
-        Ok(())
     }
 
 
@@ -228,12 +247,10 @@ impl<'a>  LexicalAnalyzer
     {
         // get a line 
         // if we dont already have one
-        let result = self.get_line();
-        match result{
-            Ok(_) => {},
-            Err(err) => return Err(err),
-        }
+        self.get_line();
 
+        
+ 
         self.current_line = self.current_line.trim().to_string();
 
         let op = self.return_eol_eof_if();

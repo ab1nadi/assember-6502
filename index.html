@@ -9,7 +9,10 @@
 
       import init, { run } from "./pkg/asm_6502.js";
       init().then(() => {
-        console.log(run("lda $ff"));
+
+        let v = run("LDA #$");
+        console.log(v)
+
       });
     </script>
   </body>
