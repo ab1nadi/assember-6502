@@ -14,6 +14,7 @@ use crate::assembler::lexical_analyzer::LexicalIterator;
 
 // std imports
 use std::collections::HashMap;
+use std::f32::consts::E;
 use std::fs::File;
 use std::io::prelude::*;
 use std::u8;
@@ -252,9 +253,6 @@ impl Assembler
     fn instruction_parser(assembler: &mut Assembler, first_pass: bool)-> Result<(),GeneralError>
     {
 
-        // returned number of bytes 
-        let mut returned_bytes = 1;
-
         // get the instruction_data_structure
         let instruction_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?;
         let instruction_option = assembler.instruction_table.get(&instruction_token.value.to_lowercase());
@@ -270,121 +268,102 @@ impl Assembler
         let mut gotten_tokens:Vec<Token> = vec![];
 
         // holds a ref to the bestmatching grammar
-        let mut best_match:&(u8,Vec<TokenType>) = &instruction_data_struct.opcode_grammer[0];
+        let mut best_matching_grammar:&(u8,Vec<TokenType>) = &instruction_data_struct.opcode_grammer[0];
  
         // holds a count of the number of elements that match
-        let mut best_match_size: u32 = 0;
-
-        // after everything is said and done did we get a match
-        let mut got_a_match = false;
-
+        let mut best_match_count: i32 = 0;
 
         // iterate over all the token grammars
         for grammar_vec in &instruction_data_struct.opcode_grammer
         {
             let mut matched = true;
-            let mut match_count = 0;
-            let mut total_bytes =  0;
 
-            // iterate over all the possible tokens in a grammar
-            for (i, token_type_grammar) in grammar_vec.1.iter().enumerate()
+            for (i, grammar_token) in grammar_vec.1.iter().enumerate()
             {
-
-                // only get tokens when we need to
-                if (gotten_tokens.len() as i32)-1 < i as i32
-                {
-                    gotten_tokens.push(Assembler::unwrap_token_option(assembler.lexical_iterator.next(),&mut assembler.lexical_iterator)?);
-                }
-
-                // allow a type coercion from label to 2bytes num because, ultimately,  thats what labels are
-                if gotten_tokens[i].token_type == TokenType::Label && *token_type_grammar == TokenType::Num2Bytes
-                {
-                    match_count = match_count +1;
-                }
-                // no cohersion so just check if they equal or not
-                else if gotten_tokens[i].token_type != *token_type_grammar
+               // get a token if we need to 
+               if (gotten_tokens.len() as i32 -1) < i as i32
+               {
+                    if let Some(token_res) = assembler.lexical_iterator.next()
+                    {
+                        if let Err(e) = token_res
+                        {
+                            return Err(Assembler::create_empty_error("Something bad happened in instruction parser"));
+                        }
+                        else 
+                        {
+                            gotten_tokens.push(token_res.unwrap());   
+                        }
+                    }
+                    else
+                    {
+                        matched=false;
+                        break;
+                    }
+               }
+                
+                // if they don't equal it is time to exit
+                if *grammar_token != gotten_tokens[i].token_type 
                 {
                     matched = false;
                     break;
                 }
-
-                // if the current token is a number it needs to be written to output so we
-                // add it to the byte count
-                if (gotten_tokens[i].token_type == TokenType::Label && *token_type_grammar == TokenType::Num2Bytes) || gotten_tokens[i].token_type == TokenType::Num2Bytes
+                else
                 {
-                    total_bytes = total_bytes + 2;
-                }
-                else if gotten_tokens[i].token_type == TokenType::Num1Bytes 
-                {
-                    total_bytes = total_bytes + 1;
-                }
-
-            }   
-
-
-            // if we matched totally this is what we want it to be 
-            if matched
-            {
-             
-                returned_bytes = returned_bytes + total_bytes;
-                best_match = &grammar_vec;
-                got_a_match = true;
-                break;
-            }
-            else  
-            {
-               if match_count > best_match_size
+                    // if i is greater than best_match_count we have a new best match
+                    if i >= best_match_count as usize 
                     {
-                        best_match_size = match_count;
-                        best_match = &grammar_vec;
+                        best_match_count = (i+1) as i32;
+                    }
+                    else
+                    {
+                        best_matching_grammar = grammar_vec;
+                    }
+                }
+
+            }
+
+            // they matched so exit
+            if matched 
+            {
+
+                // write the opcode on second pass
+                if !first_pass
+                {
+                    assembler.file_writer.write(&[best_matching_grammar.0]).unwrap();
+                }
+
+                for token in gotten_tokens
+                {
+
+                    if token.token_type == TokenType::Num1Bytes
+                    {
+                        assembler.current_byte = assembler.current_byte +1;
+                    }
+                    else if token.token_type == TokenType::Num1Bytes
+                    {
+                        assembler.current_byte = assembler.current_byte +2;
+                    }
+                    else if token.token_type == TokenType::Label
+                    {
+                        assembler.current_byte = assembler.current_byte +2;
                     }
 
-            }
-        }
-        
-
-        // it matched something 
-        if got_a_match
-        {
-
-            // write to file only on the second pass
-            if !first_pass 
-            {
-                    // write the opcode
-                    assembler.file_writer.write(&[best_match.0]).unwrap();
-
-                    // write the tokens
-                    for token in gotten_tokens
+                    // write the operands on second pass
+                    if !first_pass
                     {
                         Assembler::write_token_to_file(&mut assembler.file_writer, token, &mut assembler.symbol_table)?;
                     }
+                }
+                
+                return Ok(());
             }
-            
-
-            // add the bytes to the assemblers current byte
-            assembler.current_byte = assembler.current_byte + returned_bytes;
-
-            Ok(())
-        }
-        // nothing matched
-        else
-        {
-            let top_token_option = gotten_tokens.get(best_match_size as usize);
-            let top_token;
-            match top_token_option
-            {
-                None => 
-                { 
-                    return Err(Assembler::create_empty_error("Something broke in instruction parser function"));
-                },
-                Some(s) => {top_token=s},
-            }
-
-            return Err(Assembler::create_error("Syntax Error", top_token, vec![best_match.1[(best_match_size) as usize]]));
         }
 
-       
         
+        // there was an error because we weren't supposed to make it this far
+        return Err(Assembler::create_error("Syntax error", &gotten_tokens[gotten_tokens.len()-1], vec![best_matching_grammar.1[(best_match_count) as usize]]));
+         
+
     }
 
     // unwrap_token_option
