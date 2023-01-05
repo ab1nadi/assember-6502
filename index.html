@@ -7,11 +7,16 @@
   <body>
     <script type="module">
 
+
+      import wasm from "./pkg/asm_6502.js";
       import init, { run } from "./pkg/asm_6502.js";
+
       init().then(() => {
 
-        let v = run("LDA #$");
-        console.log(v)
+        let v = run("LDA #$12");
+        let utf8Encode = new TextEncoder();
+        
+        console.log(utf8Encode.encode(v.data()))
 
       });
     </script>
