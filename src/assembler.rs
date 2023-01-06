@@ -313,11 +313,10 @@ impl Assembler
                     if i >= best_match_count as usize 
                     {
                         best_match_count = (i+1) as i32;
-                    }
-                    else
-                    {
                         best_matching_grammar = grammar_vec;
+
                     }
+       
                 }
 
             }
