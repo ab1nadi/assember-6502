@@ -38,7 +38,7 @@ pub struct Assembler<'a>
     symbol_table: HashMap<String, u32>,
     current_byte: u32,
     instruction_table: HashMap<String,Instruction>,
-    pub object_code: String
+    pub object_code: Vec<u8>
 }
 
 
@@ -56,7 +56,7 @@ impl<'a> Assembler<'a>
             symbol_table: HashMap::new(),
             current_byte: 0,
             instruction_table: Instruction::get_map(),
-            object_code: String::new(),
+            object_code: vec![],
         })
     }
 
@@ -316,11 +316,11 @@ impl<'a> Assembler<'a>
                     if i >= best_match_count as usize 
                     {
                         best_match_count = (i+1) as i32;
-                    }
-                    else
-                    {
                         best_matching_grammar = grammar_vec;
+
                     }
+                
+
                 }
 
             }
@@ -328,11 +328,11 @@ impl<'a> Assembler<'a>
             // they matched so exit
             if matched 
             {
-
+                
                 // write the opcode on second pass
                 if !first_pass
-                {
-                    assembler.object_code.push(best_matching_grammar.0 as char);
+                {                    
+                    assembler.object_code.push(best_matching_grammar.0);
                 }
 
                 for token in gotten_tokens
@@ -442,13 +442,16 @@ impl<'a> Assembler<'a>
     // write_to_file
     // writes to a given file a given token
     // does different things based on the token type
-    fn write_token_to_file(file:&mut String, token: Token, symbol_table: &mut HashMap<String, u32>,) -> Result<(), GeneralError>
+    fn write_token_to_file(object_code_vec:&mut Vec<u8>, token: Token, symbol_table: &mut HashMap<String, u32>,) -> Result<(), GeneralError>
     {   
+
         match token.token_type
         {
             TokenType::Num1Bytes => 
             {
-                file.push(Assembler::one_byte_num_string_to_int(token.value) as char)
+                let i = Assembler::one_byte_num_string_to_int(token.value);
+
+                object_code_vec.push(i)
             },
             TokenType::Num2Bytes =>
             {
@@ -460,8 +463,8 @@ impl<'a> Assembler<'a>
                 let upper_byte:u8 = (two_byte_num >> 8) as u8;
 
                 // since it is little endian we store the lower byte first
-                file.push(lower_byte as char);
-                file.push(upper_byte as char);
+                object_code_vec.push(lower_byte);
+                object_code_vec.push(upper_byte);
             },
             TokenType::Label =>
             {
@@ -481,8 +484,8 @@ impl<'a> Assembler<'a>
                 let upper_byte:u8 = (two_byte_num >> 8) as u8;
 
                 // since it is little endian we store the lower byte first
-                file.push(lower_byte as char);
-                file.push(upper_byte as char);
+                object_code_vec.push(lower_byte);
+                object_code_vec.push(upper_byte);
             },
             TokenType::Character =>
             {
@@ -496,7 +499,7 @@ impl<'a> Assembler<'a>
                 let character = iter.next().unwrap();
 
                 // write the character to the file
-                file.push(character);
+                object_code_vec.push(character as u8);
                 
             },
             TokenType::String =>
@@ -507,9 +510,10 @@ impl<'a> Assembler<'a>
                 characters.next_back();
 
                 // write the string bytes 
-                file.push_str(characters.as_str());
+                object_code_vec.append(& mut characters.as_str().to_string().as_bytes().to_vec());
             },
             _ => { 
+
             }
         }
 

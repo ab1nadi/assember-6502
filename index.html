@@ -13,10 +13,10 @@
 
       init().then(() => {
 
-        let v = run("LDA #$12");
+        let v = run("LDA $12");
         let utf8Encode = new TextEncoder();
         
-        console.log(utf8Encode.encode(v.data()))
+        console.log(v.data());
 
       });
     </script>
