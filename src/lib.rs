@@ -1,23 +1,10 @@
 
 mod assembler;
-use std::env;
 use crate::assembler::Assembler;
 
 
-pub fn run()
+pub fn run(file_name: &String, out_put: &String) -> String
 {
-    let args: Vec<String> = env::args().collect();
-
-    // if args aren't big enough return
-    if args.len() < 3
-    {
-        println!("Expected 2 arguments: input file name and output file name");
-        return;
-    }
-
-    let file_name = &args[1];
-    let out_put = &args[2];
-    
 
     let result;
     let ass_result = Assembler::new(file_name, out_put);
@@ -38,10 +25,10 @@ pub fn run()
     {
         Err(err) =>
         {
-            println!("ERROR:");
-            println!("{}", err.to_string());
+            let returned = format!("ERROR: \n{}", err.to_string());
+            returned
         },
 
-        _ => {println!("Success!")}
+        _ => {return "Success!".to_string()}
     }
 }

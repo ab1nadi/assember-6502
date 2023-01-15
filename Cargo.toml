@@ -6,6 +6,8 @@ edition = "2021"
 [lib]
 name = "asm_6502_lib"
 path = "src/lib.rs"
+crate-type = ["dylib"]
+
 
 [[bin]]
 name = "asm_6502"
