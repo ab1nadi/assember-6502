@@ -340,7 +340,7 @@ impl LexicalAnalyzer
     fn get_token_parsers() -> Vec<TokenParser>
     {
         vec![
-            TokenParser{reg: r"^\\\\[\w\W]*".to_string(),
+            TokenParser{reg: r"((^\/\/)|^;)[\w\W]*".to_string(),
             token_type:TokenType::Comment},
             TokenParser{reg:r"^(?i)(adc|and|asl|bcc|bcs|beq|bit|bmi|bne|bpl|brk|bvc|bvs|clc|cld|cli|clv|cmp|cpx|cpy|dec|dex|dey|eor|inc|inx|iny|jmp|jsr|lda|ldx|ldy|lsr|nop|ora|pha|php|pla|plp|rol|ror|rti|rts|sbc|sec|sed|sei|sta|stx|sty|tax|tay|tsx|txa|txs|tya)((?=\W)|(?=\s)|\z)".to_string(), 
                         token_type:TokenType::Instruction},

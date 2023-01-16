@@ -1,1 +1,3 @@
-lda
+label: lda #$ff
+
+JMP label

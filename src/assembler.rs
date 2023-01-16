@@ -14,7 +14,6 @@ use crate::assembler::lexical_analyzer::LexicalIterator;
 
 // std imports
 use std::collections::HashMap;
-use std::f32::consts::E;
 use std::fs::File;
 use std::io::prelude::*;
 use std::u8;
@@ -301,8 +300,9 @@ impl Assembler
                     }
                }
                 
-                // if they don't equal it is time to exit
-                if *grammar_token != gotten_tokens[i].token_type 
+
+                // if they don't equal and they aren't castable it is time to exit
+                if *grammar_token != gotten_tokens[i].token_type && !Assembler::check_type_cast(*grammar_token, gotten_tokens[i].token_type)
                 {
                     matched = false;
                     break;
@@ -723,6 +723,24 @@ impl Assembler
 
     }
     
+    // check_type_cast
+    // returns true if theese types can cast to 
+    // each other otherwise it returns no
+    fn check_type_cast(t1: TokenType, t2: TokenType)->bool
+    {
+        let possible_conversions = [(TokenType::Label, TokenType::Num2Bytes)];
+
+        for i in possible_conversions
+        {
+            if(t1 == i.0 && t2 == i.1) || (t2 == i.0 && t1 == i.1)
+            {
+                    return true;
+            }
+        }
+
+        false
+    }
+
 
 }
 
