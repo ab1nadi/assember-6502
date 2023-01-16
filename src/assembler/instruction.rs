@@ -103,7 +103,7 @@ impl Instruction
         map.insert("bpl".to_string(), Instruction{
             string_code:"bpl".to_string(),
             opcode_grammer: vec![
-                (0x10,  grammars::EMPTY.to_vec()),
+                (0x10,  grammars::ABSOLUTE.to_vec()),
             ],
         });
 
@@ -111,7 +111,7 @@ impl Instruction
         map.insert("bmi".to_string(), Instruction{
             string_code:"bmi".to_string(),
             opcode_grammer: vec![
-                (0x30,  grammars::EMPTY.to_vec()),
+                (0x30,  grammars::ABSOLUTE.to_vec()),
             ],
         });
 
@@ -119,7 +119,7 @@ impl Instruction
         map.insert("bvc".to_string(), Instruction{
             string_code:"bvc".to_string(),
             opcode_grammer: vec![
-                (0x50,  grammars::EMPTY.to_vec()),
+                (0x50,  grammars::ABSOLUTE.to_vec()),
             ],
         });
 
@@ -127,7 +127,7 @@ impl Instruction
         map.insert("bvs".to_string(), Instruction{
             string_code:"bvs".to_string(),
             opcode_grammer: vec![
-                (0x70,  grammars::EMPTY.to_vec()),
+                (0x70,  grammars::ABSOLUTE.to_vec()),
             ],
         });
 
@@ -135,7 +135,7 @@ impl Instruction
         map.insert("bcc".to_string(), Instruction{
             string_code:"bcc".to_string(),
             opcode_grammer: vec![
-                (0x90,  grammars::EMPTY.to_vec()),
+                (0x90,  grammars::ABSOLUTE.to_vec()),
             ],
         });
 
@@ -143,7 +143,7 @@ impl Instruction
         map.insert("bcs".to_string(), Instruction{
             string_code:"bcs".to_string(),
             opcode_grammer: vec![
-                (0xb0,  grammars::EMPTY.to_vec()),
+                (0xb0,  grammars::ABSOLUTE.to_vec()),
             ],
         });
 
@@ -151,7 +151,7 @@ impl Instruction
         map.insert("bne".to_string(), Instruction{
             string_code:"bne".to_string(),
             opcode_grammer: vec![
-                (0xd0,  grammars::EMPTY.to_vec()),
+                (0xd0,  grammars::ABSOLUTE.to_vec()),
             ],
         });
 
@@ -159,7 +159,7 @@ impl Instruction
         map.insert("beq".to_string(), Instruction{
             string_code:"beq".to_string(),
             opcode_grammer: vec![
-                (0xf0,  grammars::EMPTY.to_vec()),
+                (0xf0,  grammars::ABSOLUTE.to_vec()),
             ],
         });
 
