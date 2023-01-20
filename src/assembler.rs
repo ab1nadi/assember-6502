@@ -391,116 +391,6 @@ impl Assembler
         // holds a count of the number of elements that match
         let mut best_match_count: i32 = 0;
 
-        // iterate over all the token grammars
-        for grammar_vec in &instruction_data_struct.opcode_grammer
-        {
-            let mut matched = true;
-
-            for (i, grammar_token) in grammar_vec.1.iter().enumerate()
-            {
-               // get a token if we need to 
-               if (gotten_tokens.len() as i32 -1) < i as i32
-               {
-                    if let Some(token_res) = assembler.lexical_iterator.peek(0) // we peek so that the expression parser has access to the first token if it is a number
-                    {                                                                                        // what tangled webs we weave
-                        if let Err(e) = token_res
-                        {
-                            return Err(Assembler::create_empty_error("Something bad happened in instruction parser"));
-                        }
-        
-
-                        // lets send it to the expression parser 
-                        // if it is a number
-                        if *grammar_token == TokenType::Num1Bytes || *grammar_token == TokenType::Num2Bytes
-                        {
-                                let i = Assembler::expression_parser(assembler, !&first_pass)?;
-
-                                // create a new token for the top 
-                                let  mut top = Token::empty_token();
-
-                                if i.is_two_bytes()
-                                {
-                                    top.value = i.unwrap_twobyte().to_string();
-                                    top.token_type = TokenType::Num2Bytes;
-                                }
-
-                                else
-                                {
-                                
-                                    top.value = i.unwrap_byte().to_string();
-                                    top.token_type = TokenType::Num1Bytes;
-                                }
-
-
-                                gotten_tokens.push(top);
-                        }                            
-                        
-                        else
-                        {
-                            gotten_tokens.push(token_res.unwrap());   
-                            assembler.lexical_iterator.next();
-                        }
-                        
-                    }
-               }
-                
-
-                // if they don't equal and they aren't castable it is time to exit
-                if *grammar_token != gotten_tokens[i].token_type 
-                {
-                    matched = false;
-                    break;
-                }
-                else
-                {
-                    // if i is greater than best_match_count we have a new best match
-                    if i >= best_match_count as usize 
-                    {
-                        best_match_count = (i+1) as i32;
-                        best_matching_grammar = grammar_vec;
-
-                    }
-       
-                }
-
-            }
-
-            // they matched so exit
-            if matched 
-            {
-
-                // write the opcode on second pass
-                if !first_pass
-                {
-                    assembler.file_writer.write(&[best_matching_grammar.0]).unwrap();
-                }
-
-                for token in gotten_tokens
-                {
-
-                    if token.token_type == TokenType::Num1Bytes
-                    {
-                        assembler.current_byte = assembler.current_byte +1;
-                    }
-                    else if token.token_type == TokenType::Num1Bytes
-                    {
-                        assembler.current_byte = assembler.current_byte +2;
-                    }
-                    else if token.token_type == TokenType::Label
-                    {
-                        assembler.current_byte = assembler.current_byte +2;
-                    }
-
-                    // write the operands on second pass
-                    if !first_pass
-                    {
-                        Assembler::write_token_to_file(&mut assembler.file_writer, token, &mut assembler.symbol_table)?;
-                    }
-                }
-                
-                return Ok(());
-            }
-        }
 
         
         // there was an error because we weren't supposed to make it this far
@@ -529,7 +419,7 @@ impl Assembler
         {
 
             let peeked_token = Assembler::unwrap_token_option(assembler.lexical_iterator.peek(0), &mut assembler.lexical_iterator)?;
-
+            let next_peeked_token = Assembler::unwrap_token_option(assembler.lexical_iterator.peek(1), &mut assembler.lexical_iterator)?;
 
             // check the syntax 
             Assembler::check_expression_syntax(&last_gotten_token, &peeked_token)?;
@@ -584,14 +474,15 @@ impl Assembler
                 left_parenth_count = left_parenth_count +1;
             }
             // DO stuff between parentheses
-            else if peeked_token.token_type == TokenType::RightParenth
+            // if it is a parenthese then a comma, it is probably a sta (label+2), X kina instruction
+            else if peeked_token.token_type == TokenType::RightParenth && next_peeked_token.token_type != TokenType::Comma
             {
                 // get left parenth index
                 let left_parenth_index_option = Assembler::next_left_parenth_index_top(&mut operator_stack);
                 let left_parenth_index;
                 match left_parenth_index_option
                 {
-                    None => return Err(Assembler::create_error("Syntax error, unexpected right parentheses", &peeked_token, vec![])),
+                    None => return Err(Assembler::create_error("Syntax error, unexpected right parenth", &peeked_token, vec![])),
                     Some(t)=> left_parenth_index=t
                 }
 
@@ -603,8 +494,16 @@ impl Assembler
                 left_parenth_count = left_parenth_count-1;
             }
             // Do stuff between the start and end
-            else if peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL
+            else if peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL || (peeked_token.token_type == TokenType::RightParenth && next_peeked_token.token_type == TokenType::Comma)
             {
+                // if there is still a left parenth this
+                // means there is umatched parentheses
+                if left_parenth_count > 0
+                {
+                    return Err(Assembler::create_error("Syntax error, unmatched left parenth", &peeked_token, vec![]));
+                }
+
+
                 Assembler::stack_math(&mut operand_stack, &mut operator_stack, 0)?;
             }
             // if it is anything else then what is expected throw a friggen error
@@ -639,8 +538,8 @@ impl Assembler
         {
             return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label]));
         }
-        // ("byte" || "twobyte" || "label" || ")") => "+" || "-" || "/" || "*" || ")" || "EOL"
-        else if (last_token.token_type == TokenType::Label || last_token.token_type == TokenType::Num1Bytes || last_token.token_type == TokenType::Num2Bytes || last_token.token_type==TokenType::RightParenth) && !(next_token.token_type == TokenType::DIVIDE || next_token.token_type == TokenType::TIMES || next_token.token_type == TokenType::PLUS || next_token.token_type == TokenType::MINUS || next_token.token_type == TokenType::RightParenth || next_token.token_type == TokenType::EOL) 
+        // ("byte" || "twobyte" || "label" || ")") => "+" || "-" || "/" || "*" || ")" || "EOL" || ","
+        else if (last_token.token_type == TokenType::Label || last_token.token_type == TokenType::Num1Bytes || last_token.token_type == TokenType::Num2Bytes || last_token.token_type==TokenType::RightParenth) && !(next_token.token_type == TokenType::DIVIDE || next_token.token_type == TokenType::TIMES || next_token.token_type == TokenType::PLUS || next_token.token_type == TokenType::MINUS || next_token.token_type == TokenType::RightParenth || next_token.token_type == TokenType::EOL || next_token.token_type == TokenType::Comma) 
         {
             return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::PLUS, TokenType::MINUS, TokenType::DIVIDE, TokenType::TIMES, TokenType::RightParenth]));
         }
