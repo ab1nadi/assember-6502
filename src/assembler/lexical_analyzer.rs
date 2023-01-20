@@ -57,7 +57,7 @@ impl Token
     pub fn empty_token()->Token
     {
         Token {
-            token_type: TokenType::Garbage,
+            token_type: TokenType::Empty,
             value: "".to_string(),
             logical_line:0,
             file_line:0,
@@ -98,6 +98,7 @@ pub enum TokenType
     Garbage,    // the catchall for 
     EOF,
     EOL,        // end of line 
+    Empty,
 }
 
 
@@ -128,6 +129,7 @@ impl fmt::Display for TokenType {
             TokenType::Garbage => write!(f, "Garbage"),
             TokenType::EOF => write!(f, "EOF"),
             TokenType::EOL => write!(f, "EOL"),  
+            TokenType::Empty => write!(f, "Empty")
         }
     }
 }

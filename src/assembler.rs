@@ -334,7 +334,7 @@ impl Assembler
 
             // set the label_num_value to whatever the
             // expression paser finds
-            label_num_value = Assembler::expression_parser(assembler, false)?;
+            label_num_value = Assembler::expression_parser(assembler, true)?;
             Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
 
 
@@ -372,14 +372,14 @@ impl Assembler
     {
 
         // get the instruction_data_structure
-        let instruction_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?;
+        let instruction_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?.clone();
         let instruction_option = assembler.instruction_table.get(&instruction_token.value.to_lowercase());
-        let instruction_data_struct;
+        let instruction_data_struct:Instruction;
         // unwrap the instruction_option
         match instruction_option
         {
             None=>{return Err(Assembler::create_error("Instruction has not been implemented yet!", &instruction_token, vec![]))},
-            Some(t)=>{instruction_data_struct = t},
+            Some(t)=>{instruction_data_struct = t.clone()},
         }
 
         // gotten_tokens holds the gotten tokens
@@ -401,21 +401,46 @@ impl Assembler
                // get a token if we need to 
                if (gotten_tokens.len() as i32 -1) < i as i32
                {
-                    if let Some(token_res) = assembler.lexical_iterator.next()
-                    {
+                    if let Some(token_res) = assembler.lexical_iterator.peek(0) // we peek so that the expression parser has access to the first token if it is a number
+                    {                                                                                        // what tangled webs we weave
                         if let Err(e) = token_res
                         {
                             return Err(Assembler::create_empty_error("Something bad happened in instruction parser"));
                         }
-                        else 
+        
+
+                        // lets send it to the expression parser 
+                        // if it is a number
+                        if *grammar_token == TokenType::Num1Bytes || *grammar_token == TokenType::Num2Bytes
+                        {
+                                let i = Assembler::expression_parser(assembler, !&first_pass)?;
+
+                                // create a new token for the top 
+                                let  mut top = Token::empty_token();
+
+                                if i.is_two_bytes()
+                                {
+                                    top.value = i.unwrap_twobyte().to_string();
+                                    top.token_type = TokenType::Num2Bytes;
+                                }
+
+                                else
+                                {
+                                
+                                    top.value = i.unwrap_byte().to_string();
+                                    top.token_type = TokenType::Num1Bytes;
+                                }
+
+
+                                gotten_tokens.push(top);
+                        }                            
+                        
+                        else
                         {
                             gotten_tokens.push(token_res.unwrap());   
+                            assembler.lexical_iterator.next();
                         }
-                    }
-                    else
-                    {
-                        matched=false;
-                        break;
+                        
                     }
                }
                 
@@ -498,9 +523,19 @@ impl Assembler
 
         let mut left_parenth_count = 0;
 
+        let mut last_gotten_token = Token::empty_token();
+
         loop 
         {
+
             let peeked_token = Assembler::unwrap_token_option(assembler.lexical_iterator.peek(0), &mut assembler.lexical_iterator)?;
+
+
+            // check the syntax 
+            Assembler::check_expression_syntax(&last_gotten_token, &peeked_token)?;
+            last_gotten_token = peeked_token.clone();
+
+            
 
             // ERROR there is an unmatched left parenthese
             if (peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL) && left_parenth_count>0 
@@ -527,7 +562,7 @@ impl Assembler
                 operand_stack.push(Assembler::token_to_num(assembler, peeked_token, check_variable_exitence)?);
             }
             // OPERAND its a operator, insert it into the operator stack
-            else if peeked_token.token_type == TokenType::PLUS || peeked_token.token_type == TokenType::MINUS ||peeked_token.token_type == TokenType::TIMES 
+            else if peeked_token.token_type == TokenType::PLUS || peeked_token.token_type == TokenType::MINUS ||peeked_token.token_type == TokenType::TIMES || peeked_token.token_type == TokenType::DIVIDE
             {   
                 // take the peeked token 
                 assembler.lexical_iterator.next();
@@ -536,7 +571,7 @@ impl Assembler
                 operator_stack.push(peeked_token);
             }
             // OPERAND its a left parentheses
-            else if peeked_token.token_type == TokenType::DIVIDE || peeked_token.token_type == TokenType::LeftParenth
+            else if peeked_token.token_type == TokenType::LeftParenth
             {
                 // take the peeked token 
                 assembler.lexical_iterator.next();
@@ -579,15 +614,42 @@ impl Assembler
             }
 
 
-            println!("{:?}", operand_stack );
-            println!("{:?}", operator_stack );
-
 
 
         }
         
 
         Ok(operand_stack[0])
+    }
+
+
+    // check_expression_syntax
+    // makes sure an operator is followed by an operand or left parentheses 
+    // and an operand is followed by an operand 
+    fn check_expression_syntax(last_token: &Token, next_token: &Token)-> Result<(),GeneralError>
+    {
+
+        // empty => "(" || "byte" || "twobyte" || "label"
+        if last_token.token_type == TokenType::Empty && !(next_token.token_type == TokenType::LeftParenth ||  next_token.token_type == TokenType::Num1Bytes || next_token.token_type == TokenType::Num2Bytes || next_token.token_type == TokenType::Label)
+        {
+            return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::LeftParenth, TokenType::Num2Bytes, TokenType::Num1Bytes, TokenType::Label]));
+        }
+        // "(" => "(" || "byte" || "twobyte" || "label"
+        else if last_token.token_type == TokenType::LeftParenth && !(next_token.token_type == TokenType::LeftParenth ||  next_token.token_type == TokenType::Num1Bytes || next_token.token_type == TokenType::Num2Bytes || next_token.token_type == TokenType::Label)
+        {
+            return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label]));
+        }
+        // ("byte" || "twobyte" || "label" || ")") => "+" || "-" || "/" || "*" || ")" || "EOL"
+        else if (last_token.token_type == TokenType::Label || last_token.token_type == TokenType::Num1Bytes || last_token.token_type == TokenType::Num2Bytes || last_token.token_type==TokenType::RightParenth) && !(next_token.token_type == TokenType::DIVIDE || next_token.token_type == TokenType::TIMES || next_token.token_type == TokenType::PLUS || next_token.token_type == TokenType::MINUS || next_token.token_type == TokenType::RightParenth || next_token.token_type == TokenType::EOL) 
+        {
+            return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::PLUS, TokenType::MINUS, TokenType::DIVIDE, TokenType::TIMES, TokenType::RightParenth]));
+        }
+        // ("+" || "-" || "/" || "*") => ("label" || "byte" || "twobyte" || "(")
+        else if (last_token.token_type == TokenType::PLUS || last_token.token_type == TokenType::MINUS || last_token.token_type == TokenType::DIVIDE || last_token.token_type == TokenType::TIMES) && !(next_token.token_type == TokenType::Label || next_token.token_type == TokenType::Num1Bytes || next_token.token_type == TokenType::Num2Bytes || next_token.token_type == TokenType::LeftParenth)
+        {
+            return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::Label, TokenType::Num1Bytes, TokenType::Num2Bytes]));
+        }
+        Ok(())
     }
     // unwrap_token_option
     // this function unwraps a token option
@@ -646,21 +708,6 @@ impl Assembler
         expec = expec + "]";
 
         let string = format!("{line}:{description}, expected: {expected:?}, recieved: {token}", line=recieved.file_line,description=error_description, expected=expec, token=recieved.to_string());
-
-        GeneralError::new(&string,"Assembler")
-    }
-    // cretae_error_!recieved
-    // with expected and recived tokens
-    fn create_error_norecieved(error_description:&str,  expected:Vec<TokenType>, line_num: u32, ) ->GeneralError
-    {
-        let mut expec= "[".to_string();
-        for i in expected
-        {
-            expec = expec + &i.to_string() + ", ";
-        }
-        expec = expec + "]";
-
-        let string = format!("{line}:{description}, expected: {expected:?}",description=error_description, expected=expec, line = line_num);
 
         GeneralError::new(&string,"Assembler")
     }
@@ -889,7 +936,7 @@ impl Assembler
     // do_operation
     // takes the two operands 
     // and does the given operation
-    fn do_operation(operand1:InsertableNum, operand2:InsertableNum, operator:Token)-> InsertableNum
+    fn do_operation(operand1:InsertableNum, operand2:InsertableNum, operator:Token)-> Result<InsertableNum, GeneralError>
     {
         match operator.token_type
         {
@@ -898,11 +945,11 @@ impl Assembler
                 // return a u16
                 if operand1.is_two_bytes()|| operand2.is_two_bytes()
                 {
-                    return InsertableNum::TwoByte(operand1.unwrap_twobyte() + operand2.unwrap_twobyte())
+                    return Ok(InsertableNum::TwoByte(operand1.unwrap_twobyte() + operand2.unwrap_twobyte()))
                 }      
                 else
                 {
-                    return InsertableNum::Byte((operand1.unwrap_byte() + operand2.unwrap_byte()) as u8)
+                    return Ok(InsertableNum::Byte((operand1.unwrap_byte() + operand2.unwrap_byte()) as u8))
                 }          
             },
             TokenType::MINUS =>
@@ -911,12 +958,12 @@ impl Assembler
                 if operand1.is_two_bytes()|| operand2.is_two_bytes()
                 {
                     let i =  Wrapping(operand1.unwrap_twobyte()) - Wrapping(operand2.unwrap_twobyte());
-                    return InsertableNum::TwoByte(i.0)
+                    return Ok(InsertableNum::TwoByte(i.0))
                 }      
                 else
                 {
                     let i = Wrapping(operand1.unwrap_byte()) - Wrapping(operand2.unwrap_byte());
-                    return InsertableNum::Byte(i.0);
+                    return Ok(InsertableNum::Byte(i.0))
                 }          
             },
             TokenType::TIMES =>
@@ -925,50 +972,41 @@ impl Assembler
                 if operand1.is_two_bytes()|| operand2.is_two_bytes()
                 {
                     let i =  Wrapping(operand1.unwrap_twobyte()) * Wrapping(operand2.unwrap_twobyte());
-                    return InsertableNum::TwoByte(i.0)
+                    return Ok(InsertableNum::TwoByte(i.0))
                 }      
                 else
                 {
                     let i = Wrapping(operand1.unwrap_byte()) * Wrapping(operand2.unwrap_byte());
-                    return InsertableNum::Byte(i.0);
+                    return Ok(InsertableNum::Byte(i.0))
                 }          
             }, 
             TokenType::DIVIDE =>
             {
+
+                // cannot divide by zero
+                if operand2.unwrap() == 0
+                {
+                    return Err(Assembler::create_error("Cannot divide by zero", &operator, vec![]));
+                }
+
+
                 // return a u16
                 if operand1.is_two_bytes()|| operand2.is_two_bytes()
                 {
                     let i =  Wrapping(operand1.unwrap_twobyte()) / Wrapping(operand2.unwrap_twobyte());
-                    return InsertableNum::TwoByte(i.0)
+                    return Ok(InsertableNum::TwoByte(i.0));
                 }      
                 else
                 {
                     let i = Wrapping(operand1.unwrap_byte()) /  Wrapping(operand2.unwrap_byte());
-                    return InsertableNum::Byte(i.0);
+                    return Ok(InsertableNum::Byte(i.0))
                 }          
             }
-            _ => {InsertableNum::Byte(0)}
+            _ => {Ok(InsertableNum::Byte(0))}
         }
     }
 
 
-
-    // get_operator
-    // gets an element off the
-    // top of any kind of stack and returns an error
-    fn get_top<T>(s:&mut Vec<T>, error_des:String, expected:Vec<TokenType>, line_num: u32) -> Result<T, GeneralError>
-    {
-        let top_option = s.pop();
-        // expected a left parenth 
-        if let None = top_option 
-        {
-            return Err(Assembler::create_error_norecieved(&error_des, expected, line_num))
-        }
-        else
-        {
-            Ok(top_option.unwrap())
-        }
-    }
 
     // next_left_parenth_index_top
     // returns the next left parenth
@@ -977,36 +1015,19 @@ impl Assembler
     fn next_left_parenth_index_top(s:&mut Vec<Token>) -> Option<usize> 
     {
 
-        for (i,t) in s.iter().rev().enumerate() {
+        let mut t_index:i32 = s.len() as i32-1;
+        for t in s.iter().rev(){
             if t.token_type == TokenType::LeftParenth
             {
-                if i+1 != s.len()
-                {
-                    return Some(i-s.len()-1)
-                }
-                else 
-                {
-                    return Some(0);
-                }
+               return Some(t_index as usize);
             }
+            t_index = t_index-1;
         }
 
         None
     }
 
 
-    // check_operator_token
-    // basically makes sure this is actually an operator token
-    fn check_operator_token(t: &Token) -> Result<(), GeneralError>
-    {
-        let _type = t.token_type;
-        if _type != TokenType::PLUS && _type != TokenType::MINUS && _type != TokenType::TIMES && _type != TokenType::DIVIDE
-        {
-            return Err(Assembler::create_error("Syntax error, invalid operator in expression", &t, vec![TokenType::PLUS, TokenType::MINUS, TokenType::TIMES, TokenType::DIVIDE]))
-        }
-
-        Ok(())
-    }
 
     // stack_math
     // does math between an operand stack and an operator stack
@@ -1020,22 +1041,15 @@ impl Assembler
             operator_stack.remove(index);
         }
         
-        // if the top of the stack == the index we just want to pop the top and return 
-        if index +1 == operand_stack.len()
-        {
-            // returns ok here 
-            operand_stack.pop();
-            return Ok(())
-        }
-        // else if the operand stack is just empty return 
-        else if operand_stack.len() == 1
+        
+        if operand_stack.len() == 1
         {
             return Ok(())
         }
         // else if there isn't enough operands
         else if !(operand_stack.len() > (operator_stack.len() - index))
         {
-            return Err(Assembler::create_error("Syntax error, not enoug operands for operator", &operator_stack[operand_stack.len()-1], vec![]))
+            return Err(Assembler::create_error("Syntax error, not enoug operands for operator", &operator_stack[0], vec![]))
         }
 
         // do all the times and divide operations up the stack 
@@ -1057,7 +1071,7 @@ impl Assembler
                 // replace the number on the stack
                 let replaced_index = operand_1_index;
 
-                operand_stack[replaced_index as usize] = Assembler::do_operation(*operand_1, *operand_2, operator.clone());
+                operand_stack[replaced_index as usize] = Assembler::do_operation(*operand_1, *operand_2, operator.clone())?;
 
                 // remove the next position 
                 operand_stack.remove(replaced_index as usize+1);
@@ -1088,7 +1102,7 @@ impl Assembler
                 // replace the number on the stack
                 let replaced_index = operand_1_index;
                 
-                operand_stack[replaced_index as usize] = Assembler::do_operation(*operand_1, *operand_2, operator.clone());
+                operand_stack[replaced_index as usize] = Assembler::do_operation(*operand_1, *operand_2, operator.clone())?;
 
                 // remove the next position 
                 operand_stack.remove(replaced_index as usize+1);
@@ -1234,23 +1248,6 @@ impl Assembler
 
     }
     
-    // check_type_cast
-    // returns true if theese types can cast to 
-    // each other otherwise it returns no
-    fn check_type_cast(t1: TokenType, t2: TokenType)->bool
-    {
-        let possible_conversions = [(TokenType::Label, TokenType::Num2Bytes), (TokenType::Label, TokenType::Num1Bytes)];
-
-        for i in possible_conversions
-        {
-            if(t1 == i.0 && t2 == i.1) || (t2 == i.0 && t1 == i.1)
-            {
-                    return true;
-            }
-        }
-
-        false
-    }
 
 
 }

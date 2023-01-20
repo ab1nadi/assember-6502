@@ -28,6 +28,9 @@ mod grammars{
 // instruction 
 // holds a sring code i.e. "str", "and", etc.
 // holds a hashmap full of possible grammars that this could be 
+#[derive(Debug)]
+#[derive(Clone)]
+#[derive(PartialEq)]
 pub struct Instruction 
 {
     pub string_code: String,
