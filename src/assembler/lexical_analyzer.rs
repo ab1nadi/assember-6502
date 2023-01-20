@@ -51,6 +51,20 @@ impl fmt::Display for Token {
     }
 }
 
+
+impl Token 
+{
+    pub fn empty_token()->Token
+    {
+        Token {
+            token_type: TokenType::Garbage,
+            value: "".to_string(),
+            logical_line:0,
+            file_line:0,
+        }
+    }
+}
+
 // TokenType
 // enumarates the types of tokens
 // needs all this derive crap to be used and compared against
@@ -64,6 +78,11 @@ pub enum TokenType
     RegX,
     RegY,
     RegA,
+    EQUALS,
+    PLUS,
+    MINUS,
+    TIMES,
+    DIVIDE,
     Num1Bytes,
     Num2Bytes,
     Character,
@@ -89,6 +108,11 @@ impl fmt::Display for TokenType {
             TokenType::RegX => write!(f, "RegX"),
             TokenType::RegY => write!(f, "RegY"),
             TokenType::RegA => write!(f, "RegA"),
+            TokenType::EQUALS => write!(f, "Equals sign"),
+            TokenType::PLUS => write!(f, "Plus sign"),
+            TokenType::MINUS => write!(f, "Minus sign"),
+            TokenType::TIMES => write!(f, "Times sign"),
+            TokenType::DIVIDE => write!(f, "Divide sign"),
             TokenType::Num2Bytes => write!(f, "Num2Bytes"),
             TokenType::Num1Bytes => write!(f, "Num1ytes"),
             TokenType::String => write!(f, "String"),
@@ -352,6 +376,16 @@ impl LexicalAnalyzer
                         token_type:TokenType::RightParenth},
             TokenParser{reg: r"^#".to_string(),
                         token_type:TokenType::Hash},
+            TokenParser{reg: r"^\=".to_string(),
+                        token_type:TokenType::EQUALS},
+            TokenParser{reg: r"^\+".to_string(),
+                        token_type:TokenType::PLUS},
+            TokenParser{reg: r"^\-".to_string(),
+                        token_type:TokenType::MINUS},
+            TokenParser{reg: r"^\*".to_string(),
+                        token_type:TokenType::TIMES},
+            TokenParser{reg: r"^\/".to_string(),
+                        token_type:TokenType::DIVIDE},
             TokenParser{reg:r"^(\'[\S ]+')".to_string(),
                         token_type:TokenType::String},
             TokenParser{reg:r"^('[\S ]')".to_string(),

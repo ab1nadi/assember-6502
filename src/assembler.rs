@@ -2,7 +2,7 @@ mod instruction;
 mod lexical_analyzer;
 mod peek_wrapper;
 mod gen_errors;
-
+use std::num::Wrapping;
 // crate imports 
 use crate::assembler::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
@@ -16,6 +16,9 @@ use crate::assembler::lexical_analyzer::LexicalIterator;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
+use std::num;
+use std::ptr::null;
+use std::thread::current;
 use std::u8;
 use std::u16;
 
@@ -24,10 +27,74 @@ pub struct Assembler
 {
     read_file_name: String,
     lexical_iterator: PeekWrapper<LexicalIterator>,
-    symbol_table: HashMap<String, u32>,
+    symbol_table: HashMap<String,InsertableNum>,  
     current_byte: u32,
     instruction_table: HashMap<String,Instruction>,
     file_writer: File
+}
+
+
+#[derive(Debug)]
+#[derive(Clone)]
+#[derive(Copy)]
+#[derive(PartialEq)]
+
+pub enum InsertableNum
+{
+    Byte(u8),
+    TwoByte(u16),
+}
+
+impl InsertableNum
+{
+    // unwrap
+    // this is basically for printing purposes
+    // unwraps it into a u32
+    pub fn unwrap( self) -> u32
+    {
+        match self
+        {
+            InsertableNum::Byte(num) => num as u32,
+            InsertableNum::TwoByte(num) => num as u32
+        }
+    }
+
+    // unwrap_byte
+    // returns a u8
+    // will not cast this into u16s because we don't believe
+    // in down casting
+    pub fn unwrap_byte(self) -> u8
+    {
+        match self
+        {
+            InsertableNum::Byte(num) => num as u8,
+            InsertableNum::TwoByte(num) => panic!("Down casting is frowned upon my dude")
+        }
+    }
+
+    // unwrap_twobyte 
+    // exptects it be two bytes
+    // never panics because we believe in upcasting
+    pub fn unwrap_twobyte(self) -> u16
+    {
+        match self
+        {
+            InsertableNum::TwoByte(num) => num as u16,
+            InsertableNum::Byte(num) => num as u16
+        }
+    }
+
+
+    // is_two_bytes 
+    // returns true if this number is twobytes 
+    pub fn is_two_bytes(self) -> bool 
+    {
+        match self
+        {
+            InsertableNum::TwoByte(_) => true,
+            InsertableNum::Byte(_) => false
+        }
+    }
 }
 
 
@@ -67,6 +134,7 @@ impl Assembler
         self.first_pass()?;
         self.second_pass()?;
 
+        println!("{:?}", self.symbol_table);
         Ok(())
     }
 
@@ -191,57 +259,108 @@ impl Assembler
     // adds a label to the symbol table
     fn label_parser(assembler: &mut Assembler, first_pass:bool) -> Result<(),GeneralError>
     {
-            // don't do anything on the second pass
-            if !first_pass 
-            {
-                 // consume a colon if it is there 
-                 Assembler::consume_if_available(TokenType::Label, &mut assembler.lexical_iterator)?;
 
-                // consume a colon if it is there 
+        // basically just consumes the tokens
+        // because everything with labels is done in the first pass
+        if !first_pass
+        {
+            Assembler::consume_if_available(TokenType::Label, &mut assembler.lexical_iterator)?;
+
+            // look at the next token
+            let token_option = assembler.lexical_iterator.peek(0);
+            let token;
+            // unwrap it 
+            if let None = token_option
+            {
+                return Err(Assembler::create_empty_error("Something bad happened in the label parser on the second pass"));
+            }
+            else 
+            {
+                token = token_option.unwrap()?;
+            }
+            
+            // this is a variable label it points to a variable
+            if  token.token_type == TokenType::EQUALS
+            {       
+                // consume until eof 
+                let mut current_token = token;
+                while current_token.token_type != TokenType::EOL
+                {
+                    let optional_token = assembler.lexical_iterator.next();
+                    if let None = optional_token
+                    {
+                        return Err(Assembler::create_empty_error("Something bad happened in the label parser on the second pass"));
+                    }
+                    else 
+                    {
+                        current_token = optional_token.unwrap()?;
+                    }
+                }
+            }
+            // this is a normal label that points to a place in code or memory
+            else
+            {
                 Assembler::consume_if_available(TokenType::Collon, &mut assembler.lexical_iterator)?;
-
-                // consume an eol if it is there 
                 Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
-
-                return Ok(());
             }
 
-            // get the label
-            let next_token_option =  assembler.lexical_iterator.next();
-            let token_label:Token;
-            match next_token_option 
-            {
-                None => {return Err(Assembler::create_empty_error("Something bad happened inside the assembler"))},
-                Some(t) => token_label = t?,
-            }
+            return Ok(())
+        }
 
 
-            // consume a colon if it is there 
-            Assembler::consume_if_available(TokenType::Collon, &mut assembler.lexical_iterator)?;
+        // get the label
+        let label_token = assembler.lexical_iterator.next().unwrap()?; // we can unwrap because we know it is there 
 
-            // consume an eol if it is there 
+        // peek the next token 
+        // look at the next token
+        let token_option = assembler.lexical_iterator.peek(0);
+        let next_token;
+        // unwrap it 
+        if let None = token_option
+        {
+            return Err(Assembler::create_empty_error("Something bad happened in the label parser on the first pass"));
+        }
+        else 
+        {
+            next_token = token_option.unwrap()?;
+        }
+
+        let mut label_num_value:InsertableNum = InsertableNum::Byte(0); // just initializing it to 0 
+        
+        if next_token.token_type == TokenType::EQUALS
+        {
+            // consume the equals
+            assembler.lexical_iterator.next();
+
+            // set the label_num_value to whatever the
+            // expression paser finds
+            label_num_value = Assembler::expression_parser(assembler, false)?;
             Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
 
 
-            // add the label to the symbol table 
-            // if the label already exists throw an error 
-           let option =  assembler.symbol_table.insert(token_label.value.clone(), assembler.current_byte);
+        }
+        else 
+        {
+            // get the optional characters : and eol
+            Assembler::consume_if_available(TokenType::Collon, &mut assembler.lexical_iterator)?;
+            Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
 
-           match option
-           {
-                None => {},
-
-                // throw an error the label already exists
-                Some(t)=> 
-                {
-                    let error_des = format!("{}:Semantic Error, label {{ {} }} is already defined at line: {}",token_label.file_line, token_label.value, t);
-                    return Err(Assembler::create_empty_error(error_des.as_str()));
-                }
-           }
-
-            Ok(())
+            // insert the num
+            label_num_value = InsertableNum::TwoByte(assembler.current_byte as u16);
+        }
 
 
+        let insert_option = assembler.symbol_table.insert(label_token.value.to_string(), label_num_value);
+
+        // there is an error 
+        // if we end of with some of something
+        // because that means the line exists 
+        if let Some(_) = insert_option
+        {
+            return Err(Assembler::create_error("Label is already defined", &label_token, vec![]));
+        }
+
+        Ok(())
     }
 
     // instruction_parser
@@ -302,7 +421,7 @@ impl Assembler
                 
 
                 // if they don't equal and they aren't castable it is time to exit
-                if *grammar_token != gotten_tokens[i].token_type && !Assembler::check_type_cast(*grammar_token, gotten_tokens[i].token_type)
+                if *grammar_token != gotten_tokens[i].token_type 
                 {
                     matched = false;
                     break;
@@ -365,6 +484,111 @@ impl Assembler
 
     }
 
+
+
+
+    // expression_parser
+    // converts a label expression into a single 
+    // expression unless we don't wanna check variable existence in
+    // that case it just returns a 
+    fn expression_parser(assembler: &mut Assembler, check_variable_exitence:bool) -> Result<InsertableNum,GeneralError>
+    {
+        let mut operand_stack:Vec<InsertableNum> = vec![];
+        let mut operator_stack:Vec<Token> = vec![];
+
+        let mut left_parenth_count = 0;
+
+        loop 
+        {
+            let peeked_token = Assembler::unwrap_token_option(assembler.lexical_iterator.peek(0), &mut assembler.lexical_iterator)?;
+
+            // ERROR there is an unmatched left parenthese
+            if (peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL) && left_parenth_count>0 
+            {
+                return Err(Assembler::create_error("Syntax error, unmatched parentheses", &peeked_token, vec![TokenType::RightParenth]))
+            }
+            // END 
+            else if peeked_token.token_type == TokenType::RightParenth && left_parenth_count == 0 && operand_stack.len() ==1
+            {
+                break;
+            }
+            // END
+            else if (peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL) && operand_stack.len() ==1
+            {
+                break;
+            }
+            // NUMBER its a number, insert it into the operand stack
+            else if peeked_token.token_type == TokenType::Num1Bytes || peeked_token.token_type == TokenType::Num2Bytes || peeked_token.token_type == TokenType::Label
+            {
+                // take the peeked token 
+                assembler.lexical_iterator.next();
+
+                // insert the peeked token 
+                operand_stack.push(Assembler::token_to_num(assembler, peeked_token, check_variable_exitence)?);
+            }
+            // OPERAND its a operator, insert it into the operator stack
+            else if peeked_token.token_type == TokenType::PLUS || peeked_token.token_type == TokenType::MINUS ||peeked_token.token_type == TokenType::TIMES 
+            {   
+                // take the peeked token 
+                assembler.lexical_iterator.next();
+
+                // insert the peeked token 
+                operator_stack.push(peeked_token);
+            }
+            // OPERAND its a left parentheses
+            else if peeked_token.token_type == TokenType::DIVIDE || peeked_token.token_type == TokenType::LeftParenth
+            {
+                // take the peeked token 
+                assembler.lexical_iterator.next();
+
+                // insert the peeked token 
+                operator_stack.push(peeked_token);
+
+                // add to the parenth count
+
+                left_parenth_count = left_parenth_count +1;
+            }
+            // DO stuff between parentheses
+            else if peeked_token.token_type == TokenType::RightParenth
+            {
+                // get left parenth index
+                let left_parenth_index_option = Assembler::next_left_parenth_index_top(&mut operator_stack);
+                let left_parenth_index;
+                match left_parenth_index_option
+                {
+                    None => return Err(Assembler::create_error("Syntax error, unexpected right parentheses", &peeked_token, vec![])),
+                    Some(t)=> left_parenth_index=t
+                }
+
+                // consume the right parenth 
+                assembler.lexical_iterator.next();
+                
+                Assembler::stack_math(&mut operand_stack, &mut operator_stack, left_parenth_index)?;
+
+                left_parenth_count = left_parenth_count-1;
+            }
+            // Do stuff between the start and end
+            else if peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL
+            {
+                Assembler::stack_math(&mut operand_stack, &mut operator_stack, 0)?;
+            }
+            // if it is anything else then what is expected throw a friggen error
+            else
+            {
+                return Err(Assembler::create_error("Syntax error, unexpected token in expression", &peeked_token, vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label, TokenType::MINUS, TokenType::PLUS, TokenType::TIMES, TokenType::MINUS, TokenType::LeftParenth, TokenType::RightParenth]))
+            }
+
+
+            println!("{:?}", operand_stack );
+            println!("{:?}", operator_stack );
+
+
+
+        }
+        
+
+        Ok(operand_stack[0])
+    }
     // unwrap_token_option
     // this function unwraps a token option
     // and creates an error if it gets nothing
@@ -425,6 +649,21 @@ impl Assembler
 
         GeneralError::new(&string,"Assembler")
     }
+    // cretae_error_!recieved
+    // with expected and recived tokens
+    fn create_error_norecieved(error_description:&str,  expected:Vec<TokenType>, line_num: u32, ) ->GeneralError
+    {
+        let mut expec= "[".to_string();
+        for i in expected
+        {
+            expec = expec + &i.to_string() + ", ";
+        }
+        expec = expec + "]";
+
+        let string = format!("{line}:{description}, expected: {expected:?}",description=error_description, expected=expec, line = line_num);
+
+        GeneralError::new(&string,"Assembler")
+    }
 
     // create_empty_error
     // doesn't have a recived or expected
@@ -438,7 +677,7 @@ impl Assembler
     // write_to_file
     // writes to a given file a given token
     // does different things based on the token type
-    fn write_token_to_file(file:&mut File, token: Token, symbol_table: &mut HashMap<String, u32>,) -> Result<(), GeneralError>
+    fn write_token_to_file(file:&mut File, token: Token, symbol_table: &mut HashMap<String, InsertableNum>,) -> Result<(), GeneralError>
     {   
         let mut _result = Ok(0);
         match token.token_type
@@ -461,23 +700,31 @@ impl Assembler
             },
             TokenType::Label =>
             {
-                // convert the label to a 2byte number
-                let two_byte_num_option = symbol_table.get(&token.value);
-                let two_byte_num;
-                match two_byte_num_option 
+                // make sure the label exists
+                let insertable_num_option = symbol_table.get(&token.value);
+                let insertable_num;
+                match insertable_num_option
                 {
                     None => {
                         return Err(Assembler::create_error("Label doesn't exist", &token, vec![]))
                     }, 
-                    Some(t) => two_byte_num = *t as u16,
+                    Some(t) => insertable_num = *t,
                 }
 
-                // get the upper and lower bytes
-                let lower_byte:u8 = two_byte_num as u8;
-                let upper_byte:u8 = (two_byte_num >> 8) as u8;
+                // write it to file however so
+                match insertable_num 
+                {
+                    InsertableNum::Byte(num) => _result = file.write(&[num]),
+                    InsertableNum::TwoByte(num)  => 
+                    {
+                    // get the upper and lower bytes
+                    let lower_byte:u8 = num as u8;
+                    let upper_byte:u8 = (num >> 8) as u8;
+                    // since it is little endian we store the lower byte first
+                    _result = file.write(&[lower_byte, upper_byte]);
+                    }
+                }
 
-                // since it is little endian we store the lower byte first
-                _result = file.write(&[lower_byte, upper_byte]);
             },
             TokenType::Character =>
             {
@@ -561,7 +808,7 @@ impl Assembler
 
     // two_byte_num_string_to_int
     // converts a two byte number
-    // string to a u8
+    // string to a u16
     fn two_byte_num_string_to_int(num: String) -> u16
     {
         let mut _returned:u16 = 0;
@@ -593,7 +840,271 @@ impl Assembler
         _returned
     }
 
-    
+
+    // token_to_num
+    // returns an InsertableNum 
+    // given a token
+    // if it can't turn it into a num it returns 0 
+    // if it is a label and we want it to look up labels it returns 
+    // the labels value
+    fn token_to_num(assembler: &mut Assembler, token: Token, look_up_labels:bool) -> Result<InsertableNum,GeneralError>
+    {
+        match token.token_type
+        {
+            TokenType::Num1Bytes =>
+            {
+                return Ok(InsertableNum::Byte(Assembler::one_byte_num_string_to_int(token.value.to_string())));
+            },
+            TokenType::Num2Bytes =>
+            {
+                return Ok(InsertableNum::TwoByte(Assembler::two_byte_num_string_to_int(token.value.to_string())));
+            },
+            TokenType::Label => 
+            {
+                if look_up_labels 
+                {
+                    let value_option = assembler.symbol_table.get(&token.value);
+
+                    if let None = value_option 
+                    {
+                        return Err(Assembler::create_error("Label not previously defined", &token, vec![]));
+                    }
+                    else 
+                    {
+                        return Ok(value_option.unwrap().clone());
+                    }
+                }
+                else
+                {
+                    Ok(InsertableNum::Byte(0))
+                }
+            },
+            _ => {
+                return Ok(InsertableNum::Byte(0));
+            }
+        }
+    }
+
+
+    // do_operation
+    // takes the two operands 
+    // and does the given operation
+    fn do_operation(operand1:InsertableNum, operand2:InsertableNum, operator:Token)-> InsertableNum
+    {
+        match operator.token_type
+        {
+            TokenType::PLUS =>
+            {
+                // return a u16
+                if operand1.is_two_bytes()|| operand2.is_two_bytes()
+                {
+                    return InsertableNum::TwoByte(operand1.unwrap_twobyte() + operand2.unwrap_twobyte())
+                }      
+                else
+                {
+                    return InsertableNum::Byte((operand1.unwrap_byte() + operand2.unwrap_byte()) as u8)
+                }          
+            },
+            TokenType::MINUS =>
+            {
+                // return a u16
+                if operand1.is_two_bytes()|| operand2.is_two_bytes()
+                {
+                    let i =  Wrapping(operand1.unwrap_twobyte()) - Wrapping(operand2.unwrap_twobyte());
+                    return InsertableNum::TwoByte(i.0)
+                }      
+                else
+                {
+                    let i = Wrapping(operand1.unwrap_byte()) - Wrapping(operand2.unwrap_byte());
+                    return InsertableNum::Byte(i.0);
+                }          
+            },
+            TokenType::TIMES =>
+            {
+                // return a u16
+                if operand1.is_two_bytes()|| operand2.is_two_bytes()
+                {
+                    let i =  Wrapping(operand1.unwrap_twobyte()) * Wrapping(operand2.unwrap_twobyte());
+                    return InsertableNum::TwoByte(i.0)
+                }      
+                else
+                {
+                    let i = Wrapping(operand1.unwrap_byte()) * Wrapping(operand2.unwrap_byte());
+                    return InsertableNum::Byte(i.0);
+                }          
+            }, 
+            TokenType::DIVIDE =>
+            {
+                // return a u16
+                if operand1.is_two_bytes()|| operand2.is_two_bytes()
+                {
+                    let i =  Wrapping(operand1.unwrap_twobyte()) / Wrapping(operand2.unwrap_twobyte());
+                    return InsertableNum::TwoByte(i.0)
+                }      
+                else
+                {
+                    let i = Wrapping(operand1.unwrap_byte()) /  Wrapping(operand2.unwrap_byte());
+                    return InsertableNum::Byte(i.0);
+                }          
+            }
+            _ => {InsertableNum::Byte(0)}
+        }
+    }
+
+
+
+    // get_operator
+    // gets an element off the
+    // top of any kind of stack and returns an error
+    fn get_top<T>(s:&mut Vec<T>, error_des:String, expected:Vec<TokenType>, line_num: u32) -> Result<T, GeneralError>
+    {
+        let top_option = s.pop();
+        // expected a left parenth 
+        if let None = top_option 
+        {
+            return Err(Assembler::create_error_norecieved(&error_des, expected, line_num))
+        }
+        else
+        {
+            Ok(top_option.unwrap())
+        }
+    }
+
+    // next_left_parenth_index_top
+    // returns the next left parenth
+    // in a vector stack from the 
+    // the top of the vector
+    fn next_left_parenth_index_top(s:&mut Vec<Token>) -> Option<usize> 
+    {
+
+        for (i,t) in s.iter().rev().enumerate() {
+            if t.token_type == TokenType::LeftParenth
+            {
+                if i+1 != s.len()
+                {
+                    return Some(i-s.len()-1)
+                }
+                else 
+                {
+                    return Some(0);
+                }
+            }
+        }
+
+        None
+    }
+
+
+    // check_operator_token
+    // basically makes sure this is actually an operator token
+    fn check_operator_token(t: &Token) -> Result<(), GeneralError>
+    {
+        let _type = t.token_type;
+        if _type != TokenType::PLUS && _type != TokenType::MINUS && _type != TokenType::TIMES && _type != TokenType::DIVIDE
+        {
+            return Err(Assembler::create_error("Syntax error, invalid operator in expression", &t, vec![TokenType::PLUS, TokenType::MINUS, TokenType::TIMES, TokenType::DIVIDE]))
+        }
+
+        Ok(())
+    }
+
+    // stack_math
+    // does math between an operand stack and an operator stack
+    // but only does it from a given index in the operator stack 
+    // pops the left parenth off if the index given is one
+    fn stack_math(operand_stack:&mut Vec<InsertableNum>, operator_stack:&mut Vec<Token>, index: usize) -> Result<(),GeneralError> 
+    {
+
+        if operand_stack.len()>index && operator_stack[index].token_type == TokenType::LeftParenth  
+        {
+            operator_stack.remove(index);
+        }
+        
+        // if the top of the stack == the index we just want to pop the top and return 
+        if index +1 == operand_stack.len()
+        {
+            // returns ok here 
+            operand_stack.pop();
+            return Ok(())
+        }
+        // else if the operand stack is just empty return 
+        else if operand_stack.len() == 1
+        {
+            return Ok(())
+        }
+        // else if there isn't enough operands
+        else if !(operand_stack.len() > (operator_stack.len() - index))
+        {
+            return Err(Assembler::create_error("Syntax error, not enoug operands for operator", &operator_stack[operand_stack.len()-1], vec![]))
+        }
+
+        // do all the times and divide operations up the stack 
+        let mut copy_index = index.clone();
+        while copy_index != operator_stack.len() 
+        {
+            
+            let operator = &operator_stack[copy_index];
+
+            let operand_1_index = operand_stack.len() as i32 - (operator_stack.len() as i32 - copy_index as i32+1);
+
+
+            let operand_1 = &operand_stack[operand_1_index as usize];
+            let operand_2 = &operand_stack[operand_1_index as usize+1];
+
+
+            if operator.token_type == TokenType::TIMES || operator.token_type == TokenType::DIVIDE
+            {
+                // replace the number on the stack
+                let replaced_index = operand_1_index;
+
+                operand_stack[replaced_index as usize] = Assembler::do_operation(*operand_1, *operand_2, operator.clone());
+
+                // remove the next position 
+                operand_stack.remove(replaced_index as usize+1);
+
+                operator_stack.remove(copy_index as usize);
+            }
+            else 
+            {
+                copy_index = copy_index+1;
+            }
+        }
+
+         // do all the add and subtract operations up the stack 
+         let mut copy_index = index.clone();
+         while copy_index != operator_stack.len() 
+         {
+            let operator = &operator_stack[copy_index];
+
+            let operand_1_index = operand_stack.len() as i32 - (operator_stack.len()as i32 - copy_index as i32+1);
+
+            let operand_1 = &operand_stack[operand_1_index as usize];
+            let operand_2 = &operand_stack[operand_1_index as usize+1];
+
+
+
+            if operator.token_type == TokenType::PLUS || operator.token_type == TokenType::MINUS
+            {
+                // replace the number on the stack
+                let replaced_index = operand_1_index;
+                
+                operand_stack[replaced_index as usize] = Assembler::do_operation(*operand_1, *operand_2, operator.clone());
+
+                // remove the next position 
+                operand_stack.remove(replaced_index as usize+1);
+
+                operator_stack.remove(copy_index as usize);
+            }
+            else 
+            {
+                copy_index = copy_index+1;
+            }
+         }
+
+
+
+        Ok(())
+    }
 
     // possible directives for the assembler 
     ////////////////////////////////////////////////////////////////////////
@@ -728,7 +1239,7 @@ impl Assembler
     // each other otherwise it returns no
     fn check_type_cast(t1: TokenType, t2: TokenType)->bool
     {
-        let possible_conversions = [(TokenType::Label, TokenType::Num2Bytes)];
+        let possible_conversions = [(TokenType::Label, TokenType::Num2Bytes), (TokenType::Label, TokenType::Num1Bytes)];
 
         for i in possible_conversions
         {
