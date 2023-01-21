@@ -52,14 +52,14 @@ impl Instruction
         map.insert("adc".to_string(), Instruction{
             string_code:"adc".to_string(),
             opcode_grammer: vec![
+                (0x61,  grammars::INDIRECTX.to_vec()),
+                (0x71,  grammars::INDIRECTY.to_vec()),
                 (0x69,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0x65,  grammars::ZEROPAGE.to_vec()),
                 (0x75,  grammars::ZEROPAGEX.to_vec()),
                 (0x6d,  grammars::ABSOLUTE.to_vec()),
                 (0x7d,  grammars::ABSOLUTEX.to_vec()),
                 (0x79,  grammars::ABSOLUTEY.to_vec()),
-                (0x61,  grammars::INDIRECTX.to_vec()),
-                (0x71,  grammars::INDIRECTY.to_vec()),
             ],
         });
 
@@ -68,14 +68,14 @@ impl Instruction
         map.insert("and".to_string(), Instruction{
             string_code:"and".to_string(),
             opcode_grammer: vec![
+                (0x21,  grammars::INDIRECTX.to_vec()),
+                (0x31,  grammars::INDIRECTY.to_vec()),
                 (0x29,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0x25,  grammars::ZEROPAGE.to_vec()),
                 (0x35,  grammars::ZEROPAGEX.to_vec()),
                 (0x2d,  grammars::ABSOLUTE.to_vec()),
                 (0x3d,  grammars::ABSOLUTEX.to_vec()),
                 (0x39,  grammars::ABSOLUTEY.to_vec()),
-                (0x21,  grammars::INDIRECTX.to_vec()),
-                (0x31,  grammars::INDIRECTY.to_vec()),
             ],
         });
 
@@ -182,14 +182,14 @@ impl Instruction
          map.insert("cmp".to_string(), Instruction{
             string_code:"cmp".to_string(),
             opcode_grammer: vec![
+                (0xc1,  grammars::INDIRECTX.to_vec()),
+                (0xd1,  grammars::INDIRECTY.to_vec()),
                 (0xc9,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0xc5,  grammars::ZEROPAGE.to_vec()),
                 (0xd5,  grammars::ZEROPAGEX.to_vec()),
                 (0xcd,  grammars::ABSOLUTE.to_vec()),
                 (0xdd,  grammars::ABSOLUTEX.to_vec()),
                 (0xd9,  grammars::ABSOLUTEY.to_vec()),
-                (0xc1,  grammars::INDIRECTX.to_vec()),
-                (0xd1,  grammars::INDIRECTY.to_vec()),
             ],
         });
 
@@ -233,14 +233,14 @@ impl Instruction
         map.insert("eor".to_string(), Instruction{
             string_code:"eor".to_string(),
             opcode_grammer: vec![
+                (0x41,  grammars::INDIRECTX.to_vec()),
+                (0x51,  grammars::INDIRECTY.to_vec()),
                 (0x49,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0x45,  grammars::ZEROPAGE.to_vec()),
                 (0x55,  grammars::ZEROPAGEX.to_vec()),
                 (0x4d,  grammars::ABSOLUTE.to_vec()),
                 (0x5d,  grammars::ABSOLUTEX.to_vec()),
                 (0x59,  grammars::ABSOLUTEY.to_vec()),
-                (0x41,  grammars::INDIRECTX.to_vec()),
-                (0x51,  grammars::INDIRECTY.to_vec()),
             ],
         });
 
@@ -322,8 +322,8 @@ impl Instruction
         map.insert("jmp".to_string(), Instruction{
             string_code:"jmo".to_string(),
             opcode_grammer: vec![
-                (0x4c,  grammars::ABSOLUTE.to_vec()),
                 (0x6c,  grammars::INDIRECT.to_vec()),
+                (0x4c,  grammars::ABSOLUTE.to_vec()),
             ],
         });
         
@@ -341,15 +341,14 @@ impl Instruction
         map.insert("lda".to_string(), Instruction{
             string_code:"lda".to_string(),
             opcode_grammer: vec![
+                (0xb9,  grammars::ABSOLUTEY.to_vec()),
+                (0xa1,  grammars::INDIRECTX.to_vec()),
+                (0xb1,  grammars::INDIRECTY.to_vec()),
                 (0xa9,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0xa5,  grammars::ZEROPAGE.to_vec()),
                 (0xb5,  grammars::ZEROPAGEX.to_vec()),
                 (0xad,  grammars::ABSOLUTE.to_vec()),
                 (0xbd,  grammars::ABSOLUTEX.to_vec()),
-                (0xb9,  grammars::ABSOLUTEY.to_vec()),
-                (0xa1,  grammars::INDIRECTX.to_vec()),
-                (0xb1,  grammars::INDIRECTY.to_vec()),
-            
             ],
         });
 
@@ -406,15 +405,14 @@ impl Instruction
         map.insert("ora".to_string(), Instruction{
             string_code:"ora".to_string(),
             opcode_grammer: vec![
+                (0x01,  grammars::INDIRECTX.to_vec()),
+                (0x11,  grammars::INDIRECTY.to_vec()),
                 (0x09,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0x05,  grammars::ZEROPAGE.to_vec()),
                 (0x15,  grammars::ZEROPAGEX.to_vec()),
                 (0x0d,  grammars::ABSOLUTE.to_vec()),
                 (0x1d,  grammars::ABSOLUTEX.to_vec()),
                 (0x19,  grammars::ABSOLUTEY.to_vec()),
-                (0x01,  grammars::INDIRECTX.to_vec()),
-                (0x11,  grammars::INDIRECTY.to_vec()),
-            
             ],
         });
 
@@ -535,15 +533,14 @@ impl Instruction
         map.insert("sbc".to_string(), Instruction{
             string_code:"sbc".to_string(),
             opcode_grammer: vec![
+                (0xe1,  grammars::INDIRECTX.to_vec()),
+                (0xf1,  grammars::INDIRECTY.to_vec()),
                 (0xe9,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0xe5,  grammars::ZEROPAGE.to_vec()),
                 (0xf5,  grammars::ZEROPAGEX.to_vec()),
                 (0xed,  grammars::ABSOLUTE.to_vec()),
                 (0xfd,  grammars::ABSOLUTEX.to_vec()),
                 (0xf9,  grammars::ABSOLUTEY.to_vec()),
-                (0xe1,  grammars::INDIRECTX.to_vec()),
-                (0xf1,  grammars::INDIRECTY.to_vec()),
-            
             ],
         });
 
@@ -552,14 +549,13 @@ impl Instruction
         map.insert("sta".to_string(), Instruction{
             string_code:"sta".to_string(),
             opcode_grammer: vec![
+                (0x81,  grammars::INDIRECTX.to_vec()),
+                (0x91,  grammars::INDIRECTY.to_vec()),
                 (0x85,  grammars::ZEROPAGE.to_vec()),
                 (0x95,  grammars::ZEROPAGEX.to_vec()),
                 (0x8d,  grammars::ABSOLUTE.to_vec()),
                 (0x9d,  grammars::ABSOLUTEX.to_vec()),
-                (0x99,  grammars::ABSOLUTEY.to_vec()),
-                (0x81,  grammars::INDIRECTX.to_vec()),
-                (0x91,  grammars::INDIRECTY.to_vec()),
-            
+                (0x99,  grammars::ABSOLUTEY.to_vec()),            
             ],
         });
 

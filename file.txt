@@ -1,3 +1,1 @@
-label = $2200
-
-adc label
+lable = (($23))

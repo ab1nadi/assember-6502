@@ -2,6 +2,7 @@ mod instruction;
 mod lexical_analyzer;
 mod peek_wrapper;
 mod gen_errors;
+use std::env::current_exe;
 use std::num::Wrapping;
 // crate imports 
 use crate::assembler::lexical_analyzer::LexicalAnalyzer;
@@ -282,20 +283,8 @@ impl Assembler
             // this is a variable label it points to a variable
             if  token.token_type == TokenType::EQUALS
             {       
-                // consume until eof 
-                let mut current_token = token;
-                while current_token.token_type != TokenType::EOL
-                {
-                    let optional_token = assembler.lexical_iterator.next();
-                    if let None = optional_token
-                    {
-                        return Err(Assembler::create_empty_error("Something bad happened in the label parser on the second pass"));
-                    }
-                    else 
-                    {
-                        current_token = optional_token.unwrap()?;
-                    }
-                }
+                let mut token_stack:Vec<Token> = vec![];
+                Assembler::get_until_eol(assembler, &mut token_stack)?;
             }
             // this is a normal label that points to a place in code or memory
             else
@@ -330,14 +319,14 @@ impl Assembler
         if next_token.token_type == TokenType::EQUALS
         {
             // consume the equals
-            assembler.lexical_iterator.next();
+            Assembler::consume_if_available(TokenType::EQUALS, &mut assembler.lexical_iterator)?;
+           
+            let mut token_stack:Vec<Token> = vec![];
+            Assembler::get_until_eol(assembler, &mut token_stack)?;
 
-            // set the label_num_value to whatever the
-            // expression paser finds
-            label_num_value = Assembler::expression_parser(assembler, true)?;
-            Assembler::consume_if_available(TokenType::EOL, &mut assembler.lexical_iterator)?;
+            Assembler::check_label_expression_syntax(&mut token_stack)?;
 
-
+             label_num_value = Assembler::expression(assembler, & mut token_stack)?;
         }
         else 
         {
@@ -363,6 +352,91 @@ impl Assembler
         Ok(())
     }
 
+
+
+    // check_variable_label_syntax
+    // checks the syntax of a label
+    // that points to a variable 
+    // makes sure that the expression is legit
+    fn check_label_expression_syntax(token_vec:&Vec<Token>)-> Result<(), GeneralError>
+    {
+        let  operator:Vec<TokenType> = vec![TokenType::PLUS, TokenType::MINUS, TokenType::DIVIDE, TokenType::TIMES];
+        let  operand:Vec<TokenType> = vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label];
+        let  end:Vec<TokenType> = vec![TokenType::EOL];
+
+
+        let mut left_parenth_count = 0;
+
+
+        // start => "(" || operand
+        if !(operand.contains(&token_vec[0].token_type) || token_vec[0].token_type == TokenType::LeftParenth)
+        {
+            return Err(Assembler::create_error("Syntax error", &token_vec[0], [&[TokenType::LeftParenth], operand.as_slice()].concat()))
+        }
+
+        for (i,t) in token_vec.iter().enumerate()
+        {
+            // "(" => operand || "("
+            if t.token_type == TokenType::LeftParenth 
+            {
+
+                if !(operand.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type == TokenType::LeftParenth)
+                {
+                    return Err(Assembler::create_error("Syntax error", &token_vec[i+1], operand))
+                }
+                left_parenth_count = left_parenth_count + 1;
+            } 
+            // operand => ")" ||  operator || End
+            else if operand.contains(&t.token_type) && !(token_vec[i+1].token_type == TokenType::RightParenth || operator.contains(&token_vec[i+1].token_type) || end.contains(&token_vec[i+1].token_type))
+            {
+                return Err(Assembler::create_error("Syntax error", &token_vec[i+1], [&[TokenType::RightParenth], operator.as_slice()].concat()));
+            }
+            // operator => operand || "("
+            else if operator.contains(&t.token_type) && !(operand.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type != TokenType::RightParenth)
+            {
+                return Err(Assembler::create_error("Syntax error", &token_vec[i+1], [&[TokenType::LeftParenth], operand.as_slice()].concat()));
+            }
+            //  ")" => operator || end || ")"
+            else if t.token_type == TokenType::RightParenth 
+            {
+
+                if !(operator.contains(&token_vec[i+1].token_type) || end.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type == TokenType::RightParenth)
+                {
+                    return Err(Assembler::create_error("Syntax error", &token_vec[i+1], [end.as_slice(), operator.as_slice()].concat()));
+                }
+                
+                if left_parenth_count == 0
+                {
+                    return Err(Assembler::create_error("Syntax error, unmatched right parenth", &t, vec![TokenType::LeftParenth]));
+                }
+                else
+                {
+                    left_parenth_count = left_parenth_count -1;
+                }
+            
+            }
+
+            // end 
+            else if i == token_vec.len()-1
+            {
+
+                if !end.contains(&t.token_type)
+                {
+                    return Err(Assembler::create_error("Syntax error", &t, [end.as_slice()].concat()));
+                }
+
+                if left_parenth_count > 0
+                {
+                    return Err(Assembler::create_error("Syntax error, unmatched left parenth", &t, vec![TokenType::RightParenth]));
+                }
+            }
+
+
+        }
+
+        Ok(())
+    }
+
     // instruction_parser
     // essentially this parses an instruction
     // from the lexical analyzer and writes it to file
@@ -370,186 +444,302 @@ impl Assembler
     // TODO: clean up this code a little
     fn instruction_parser(assembler: &mut Assembler, first_pass: bool)-> Result<(),GeneralError>
     {
-
-        // get the instruction_data_structure
-        let instruction_token = Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?.clone();
-        let instruction_option = assembler.instruction_table.get(&instruction_token.value.to_lowercase());
-        let instruction_data_struct:Instruction;
-        // unwrap the instruction_option
-        match instruction_option
-        {
-            None=>{return Err(Assembler::create_error("Instruction has not been implemented yet!", &instruction_token, vec![]))},
-            Some(t)=>{instruction_data_struct = t.clone()},
-        }
-
-        // gotten_tokens holds the gotten tokens
+        // get all the tokens until eol 
         let mut gotten_tokens:Vec<Token> = vec![];
 
-        // holds a ref to the bestmatching grammar
-        let mut best_matching_grammar:&(u8,Vec<TokenType>) = &instruction_data_struct.opcode_grammer[0];
- 
-        // holds a count of the number of elements that match
-        let mut best_match_count: i32 = 0;
+        let token_instruction = &Assembler::unwrap_token_option(assembler.lexical_iterator.next(), &mut assembler.lexical_iterator)?;
+        Assembler::get_until_eol(assembler, &mut gotten_tokens)?;
+
+        // get the expected grammars for this 
+        let instruction = assembler.instruction_table.get(&token_instruction.value).unwrap();
+
+        let mut best_match = &instruction.opcode_grammer[0];
+        let mut best_match_count:usize = 0;
+        let mut expected_index:usize=0;
+        let mut matched = false;
+
+        for grammar in &instruction.opcode_grammer
+        {
+            let did_it_match = Assembler::check_instruction_syntax(&gotten_tokens, &grammar.1)?;
+
+            // if its the first pass and it matched
+            // just return
+            if did_it_match.0 && first_pass
+            {
+                return  Ok(())
+            }
+            // if its not first pass and matched
+            // make it the best matching grammar
+            // and break;
+            else if did_it_match.0 
+            {
+                matched=true;
+                best_match = grammar;
+                break;
+            }
+            // didn't match so see if this is the best
+            // matching grammar this far
+            else if did_it_match.1 > best_match_count
+            {
+                best_match_count = did_it_match.1;
+                best_match = grammar;
+                expected_index = did_it_match.2;
+            }
+        }
+
+        // didn't match anthing
+        if !matched 
+        {
+            return Err(Assembler::create_error("Syntax error", &gotten_tokens[best_match_count], vec![best_match.1[expected_index]]));
+        }
+
+        // write the instruction to file 
+        assembler.file_writer.write(&[best_match.0]).unwrap();
 
 
+        let expression_index =  best_match.1.iter().position(|&r| (r == TokenType::Num1Bytes || r == TokenType::Num2Bytes));
         
-        // there was an error because we weren't supposed to make it this far
-        return Err(Assembler::create_error("Syntax error", &gotten_tokens[gotten_tokens.len()-1], vec![best_matching_grammar.1[(best_match_count) as usize]]));
-         
+        // there is an expression so parse it 
+        if let Some(i) = expression_index
+        {
+            let expression_type = best_match.1[i];
+            let expression_stack = &gotten_tokens[i..gotten_tokens.len()-(best_match.1.len()-i-1)];
 
+            let num = Assembler::expression(assembler, expression_stack)?;
+            let mut empty_t = Token::empty_token();
+            
+            if num.is_two_bytes() 
+            {
+                empty_t.value = num.unwrap_twobyte().to_string();
+                empty_t.token_type = TokenType::Num2Bytes;
+            }
+            else 
+            {
+                empty_t.value = num.unwrap_byte().to_string();
+                empty_t.token_type = TokenType::Num1Bytes;
+            }
+
+            if num.is_two_bytes() && expression_type == TokenType::Num1Bytes
+            {
+                return Err(Assembler::create_error("Instrution expects 1 byte and got a 2 byte expression", &empty_t, vec![TokenType::Num1Bytes]))
+            }
+            else if !num.is_two_bytes() && expression_type == TokenType::Num2Bytes 
+            {
+                return Err(Assembler::create_error("Instrution expects 2 byte and got a 1 byte expression", &empty_t, vec![TokenType::Num2Bytes])) 
+            }
+            Assembler::write_token_to_file(&mut assembler.file_writer, empty_t, &mut assembler.symbol_table)?;
+
+
+        }
+
+        Ok(())
     }
 
+    // get_until_eol
+    // get tokens from assembler
+    // util eol and put them in a vector
+    fn get_until_eol(assembler: &mut Assembler, vector:&mut Vec<Token>) -> Result<(),GeneralError>
+    {
+        let mut gotten_eol = false;
 
+        while !gotten_eol 
+        {
+            let opt = assembler.lexical_iterator.next();
+
+            if let None = opt 
+            {
+                return Err(Assembler::create_empty_error("Something went wrong in get_until_eof function. This is a developer error"));
+            }
+            else 
+            {
+                let tok = opt.unwrap()?;
+                
+                if tok.token_type == TokenType::EOL
+                {
+                    gotten_eol = true;
+                }
+
+                vector.push(tok);
+            }
+            
+        }
+
+        Ok(())
+    }   
 
 
     // expression_parser
     // converts a label expression into a single 
     // expression unless we don't wanna check variable existence in
     // that case it just returns a 
-    fn expression_parser(assembler: &mut Assembler, check_variable_exitence:bool) -> Result<InsertableNum,GeneralError>
+    fn expression(assembler: &Assembler, expression_stack: &[Token]) -> Result<InsertableNum,GeneralError>
     {
         let mut operand_stack:Vec<InsertableNum> = vec![];
         let mut operator_stack:Vec<Token> = vec![];
 
-        let mut left_parenth_count = 0;
+        let operators = vec![TokenType::LeftParenth, TokenType::PLUS, TokenType::MINUS, TokenType::TIMES, TokenType::DIVIDE];
+        let operands = vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label];
 
-        let mut last_gotten_token = Token::empty_token();
-
-        loop 
+        for i in expression_stack
         {
+            // its an operator 
+            // put it on the operator stack
+            if operators.contains(&i.token_type)
+            {
+                operator_stack.push(i.clone());
+            }
+            // its an operand put it on the operand stack
+            else if operands.contains(&i.token_type)
+            {
 
-            let peeked_token = Assembler::unwrap_token_option(assembler.lexical_iterator.peek(0), &mut assembler.lexical_iterator)?;
-            let next_peeked_token = Assembler::unwrap_token_option(assembler.lexical_iterator.peek(1), &mut assembler.lexical_iterator)?;
+                let num;
+                if i.token_type == TokenType::Num1Bytes
+                {
+                    num = InsertableNum::Byte(Assembler::one_byte_num_string_to_int(i.value.clone()));
+                }
+                else if i.token_type == TokenType::Num2Bytes 
+                {
+                    num = InsertableNum::TwoByte(Assembler::two_byte_num_string_to_int(i.value.clone()));
+                }
+                else
+                {
+                    let option = assembler.symbol_table.get(&i.value);
 
-            // check the syntax 
-            Assembler::check_expression_syntax(&last_gotten_token, &peeked_token)?;
-            last_gotten_token = peeked_token.clone();
+                    if let None = option
+                    {
+                            return Err(Assembler::create_error("Syntax error, label doesn't exist", &i, vec![]))
+                    }
+                    else
+                    {
+                        num = *option.unwrap();
+                    }
+                }
 
+                operand_stack.push(num);
+            }
             
-
-            // ERROR there is an unmatched left parenthese
-            if (peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL) && left_parenth_count>0 
+            else if i.token_type == TokenType::RightParenth
             {
-                return Err(Assembler::create_error("Syntax error, unmatched parentheses", &peeked_token, vec![TokenType::RightParenth]))
+                Assembler::stack_math(&mut operand_stack, &mut operator_stack)?;
             }
-            // END 
-            else if peeked_token.token_type == TokenType::RightParenth && left_parenth_count == 0 && operand_stack.len() ==1
-            {
-                break;
-            }
-            // END
-            else if (peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL) && operand_stack.len() ==1
-            {
-                break;
-            }
-            // NUMBER its a number, insert it into the operand stack
-            else if peeked_token.token_type == TokenType::Num1Bytes || peeked_token.token_type == TokenType::Num2Bytes || peeked_token.token_type == TokenType::Label
-            {
-                // take the peeked token 
-                assembler.lexical_iterator.next();
-
-                // insert the peeked token 
-                operand_stack.push(Assembler::token_to_num(assembler, peeked_token, check_variable_exitence)?);
-            }
-            // OPERAND its a operator, insert it into the operator stack
-            else if peeked_token.token_type == TokenType::PLUS || peeked_token.token_type == TokenType::MINUS ||peeked_token.token_type == TokenType::TIMES || peeked_token.token_type == TokenType::DIVIDE
-            {   
-                // take the peeked token 
-                assembler.lexical_iterator.next();
-
-                // insert the peeked token 
-                operator_stack.push(peeked_token);
-            }
-            // OPERAND its a left parentheses
-            else if peeked_token.token_type == TokenType::LeftParenth
-            {
-                // take the peeked token 
-                assembler.lexical_iterator.next();
-
-                // insert the peeked token 
-                operator_stack.push(peeked_token);
-
-                // add to the parenth count
-
-                left_parenth_count = left_parenth_count +1;
-            }
-            // DO stuff between parentheses
-            // if it is a parenthese then a comma, it is probably a sta (label+2), X kina instruction
-            else if peeked_token.token_type == TokenType::RightParenth && next_peeked_token.token_type != TokenType::Comma
-            {
-                // get left parenth index
-                let left_parenth_index_option = Assembler::next_left_parenth_index_top(&mut operator_stack);
-                let left_parenth_index;
-                match left_parenth_index_option
-                {
-                    None => return Err(Assembler::create_error("Syntax error, unexpected right parenth", &peeked_token, vec![])),
-                    Some(t)=> left_parenth_index=t
-                }
-
-                // consume the right parenth 
-                assembler.lexical_iterator.next();
-                
-                Assembler::stack_math(&mut operand_stack, &mut operator_stack, left_parenth_index)?;
-
-                left_parenth_count = left_parenth_count-1;
-            }
-            // Do stuff between the start and end
-            else if peeked_token.token_type == TokenType::Comma || peeked_token.token_type == TokenType::EOL || (peeked_token.token_type == TokenType::RightParenth && next_peeked_token.token_type == TokenType::Comma)
-            {
-                // if there is still a left parenth this
-                // means there is umatched parentheses
-                if left_parenth_count > 0
-                {
-                    return Err(Assembler::create_error("Syntax error, unmatched left parenth", &peeked_token, vec![]));
-                }
-
-
-                Assembler::stack_math(&mut operand_stack, &mut operator_stack, 0)?;
-            }
-            // if it is anything else then what is expected throw a friggen error
-            else
-            {
-                return Err(Assembler::create_error("Syntax error, unexpected token in expression", &peeked_token, vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label, TokenType::MINUS, TokenType::PLUS, TokenType::TIMES, TokenType::MINUS, TokenType::LeftParenth, TokenType::RightParenth]))
-            }
-
-
-
-
         }
-        
 
-        Ok(operand_stack[0])
+
+
+        Assembler::stack_math(&mut operand_stack, &mut operator_stack)?;
+
+
+        Ok(operand_stack.pop().unwrap())
     }
-
 
     // check_expression_syntax
-    // makes sure an operator is followed by an operand or left parentheses 
-    // and an operand is followed by an operand 
-    fn check_expression_syntax(last_token: &Token, next_token: &Token)-> Result<(),GeneralError>
+    // this does two things, checks if the token_vec
+    // matches the given token_grammar, and it returns 
+    // how far it matched if it didn't
+    fn check_instruction_syntax(token_vec:&Vec<Token>, token_grammar:&Vec<TokenType>)-> Result<(bool,usize,usize),GeneralError>
     {
+        let  operator:Vec<TokenType> = vec![TokenType::PLUS, TokenType::MINUS, TokenType::DIVIDE, TokenType::TIMES];
+        let  operand:Vec<TokenType> = vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label];
+        let  end:Vec<TokenType> = vec![TokenType::EOL, TokenType::Comma];
 
-        // empty => "(" || "byte" || "twobyte" || "label"
-        if last_token.token_type == TokenType::Empty && !(next_token.token_type == TokenType::LeftParenth ||  next_token.token_type == TokenType::Num1Bytes || next_token.token_type == TokenType::Num2Bytes || next_token.token_type == TokenType::Label)
+
+        let mut current_token_grammar_index: usize = 0;
+
+        let mut left_parenth_count = 0;
+
+        let mut in_syntax = true;
+
+
+        // iterate over all possible tokens
+        for (i, token) in token_vec.iter().enumerate()
         {
-            return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::LeftParenth, TokenType::Num2Bytes, TokenType::Num1Bytes, TokenType::Label]));
+
+
+            if (token_grammar[current_token_grammar_index] == TokenType::Num1Bytes || token_grammar[current_token_grammar_index] == TokenType::Num2Bytes) && in_syntax
+            {
+                in_syntax = true;   // we want to keep going through syntax
+
+                // "(" => operand || "("
+                if token.token_type == TokenType::LeftParenth
+                {
+                    if !(operand.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type == TokenType::LeftParenth)
+                    {
+                        return Err(Assembler::create_error("Syntax error", &token_vec[i+1], operand));
+                    }
+                    left_parenth_count = left_parenth_count + 1;
+                }
+                // operand => operator || ")" || End
+                else if operand.contains(&token.token_type)
+                {
+                    if !(operator.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type == TokenType::RightParenth || end.contains(&token_vec[i+1].token_type))
+                    {
+                        return Err(Assembler::create_error("Syntax error", &token_vec[i+1], [operator.as_slice(), &[TokenType::RightParenth], end.as_slice()].concat()));
+                    }
+                }
+                // ")" => operator || ")" || End
+                else if token.token_type == TokenType::RightParenth
+                {
+                    if !(operator.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type == TokenType::RightParenth || end.contains(&token_vec[i+1].token_type))
+                    {
+                        return Err(Assembler::create_error("Syntax error", &token_vec[i+1], operand));
+                    }
+
+                    if left_parenth_count == 0
+                    {
+                        return Err(Assembler::create_error("Syntax error, unmatched right parenth", &token_vec[i+1], [operator.as_slice(), &[TokenType::RightParenth], end.as_slice()].concat()));
+                    }
+
+                    left_parenth_count = left_parenth_count -1;
+                }
+
+                // operator => operaand || "("
+                else if operator.contains(&token.token_type)
+                {
+                    if !(operand.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type == TokenType::LeftParenth)
+                    {
+                        return Err(Assembler::create_error("Syntax error", &token_vec[i+1], [operand.as_slice(), &[TokenType::LeftParenth]].concat()));
+                    }
+                }
+                else 
+                {
+                    return Err(Assembler::create_error("Syntax error", &token, [&[TokenType::LeftParenth], operand.as_slice()].concat()))
+                }
+
+                // its the end
+                if end.contains(&token_vec[i+1].token_type)
+                {
+
+                    in_syntax = false;    
+
+                    if left_parenth_count >0
+                    {
+                        return Err(Assembler::create_error("Syntax error, unmatched left parenth", &token_vec[i+1], vec![TokenType::RightParenth]));
+                    }
+
+
+                    // so that this thing increments into the next token
+                    current_token_grammar_index = current_token_grammar_index+1;
+                }
+
+            }
+            // just compare the next token with the token grammar
+            else
+            {
+                if token.token_type != token_grammar[current_token_grammar_index]
+                {
+                    return Ok((false,i,current_token_grammar_index));
+                }
+                else
+                {
+                    current_token_grammar_index = current_token_grammar_index+1;
+                }
+            }
         }
-        // "(" => "(" || "byte" || "twobyte" || "label"
-        else if last_token.token_type == TokenType::LeftParenth && !(next_token.token_type == TokenType::LeftParenth ||  next_token.token_type == TokenType::Num1Bytes || next_token.token_type == TokenType::Num2Bytes || next_token.token_type == TokenType::Label)
-        {
-            return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label]));
-        }
-        // ("byte" || "twobyte" || "label" || ")") => "+" || "-" || "/" || "*" || ")" || "EOL" || ","
-        else if (last_token.token_type == TokenType::Label || last_token.token_type == TokenType::Num1Bytes || last_token.token_type == TokenType::Num2Bytes || last_token.token_type==TokenType::RightParenth) && !(next_token.token_type == TokenType::DIVIDE || next_token.token_type == TokenType::TIMES || next_token.token_type == TokenType::PLUS || next_token.token_type == TokenType::MINUS || next_token.token_type == TokenType::RightParenth || next_token.token_type == TokenType::EOL || next_token.token_type == TokenType::Comma) 
-        {
-            return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::PLUS, TokenType::MINUS, TokenType::DIVIDE, TokenType::TIMES, TokenType::RightParenth]));
-        }
-        // ("+" || "-" || "/" || "*") => ("label" || "byte" || "twobyte" || "(")
-        else if (last_token.token_type == TokenType::PLUS || last_token.token_type == TokenType::MINUS || last_token.token_type == TokenType::DIVIDE || last_token.token_type == TokenType::TIMES) && !(next_token.token_type == TokenType::Label || next_token.token_type == TokenType::Num1Bytes || next_token.token_type == TokenType::Num2Bytes || next_token.token_type == TokenType::LeftParenth)
-        {
-            return Err(Assembler::create_error("Syntax error, unexpected token", next_token, vec![TokenType::Label, TokenType::Num1Bytes, TokenType::Num2Bytes]));
-        }
-        Ok(())
+
+
+        Ok((true,0,0))
     }
+    
     // unwrap_token_option
     // this function unwraps a token option
     // and creates an error if it gets nothing
@@ -786,52 +976,6 @@ impl Assembler
         _returned
     }
 
-
-    // token_to_num
-    // returns an InsertableNum 
-    // given a token
-    // if it can't turn it into a num it returns 0 
-    // if it is a label and we want it to look up labels it returns 
-    // the labels value
-    fn token_to_num(assembler: &mut Assembler, token: Token, look_up_labels:bool) -> Result<InsertableNum,GeneralError>
-    {
-        match token.token_type
-        {
-            TokenType::Num1Bytes =>
-            {
-                return Ok(InsertableNum::Byte(Assembler::one_byte_num_string_to_int(token.value.to_string())));
-            },
-            TokenType::Num2Bytes =>
-            {
-                return Ok(InsertableNum::TwoByte(Assembler::two_byte_num_string_to_int(token.value.to_string())));
-            },
-            TokenType::Label => 
-            {
-                if look_up_labels 
-                {
-                    let value_option = assembler.symbol_table.get(&token.value);
-
-                    if let None = value_option 
-                    {
-                        return Err(Assembler::create_error("Label not previously defined", &token, vec![]));
-                    }
-                    else 
-                    {
-                        return Ok(value_option.unwrap().clone());
-                    }
-                }
-                else
-                {
-                    Ok(InsertableNum::Byte(0))
-                }
-            },
-            _ => {
-                return Ok(InsertableNum::Byte(0));
-            }
-        }
-    }
-
-
     // do_operation
     // takes the two operands 
     // and does the given operation
@@ -906,49 +1050,39 @@ impl Assembler
     }
 
 
-
-    // next_left_parenth_index_top
-    // returns the next left parenth
-    // in a vector stack from the 
-    // the top of the vector
-    fn next_left_parenth_index_top(s:&mut Vec<Token>) -> Option<usize> 
-    {
-
-        let mut t_index:i32 = s.len() as i32-1;
-        for t in s.iter().rev(){
-            if t.token_type == TokenType::LeftParenth
-            {
-               return Some(t_index as usize);
-            }
-            t_index = t_index-1;
-        }
-
-        None
-    }
-
-
-
     // stack_math
     // does math between an operand stack and an operator stack
     // but only does it from a given index in the operator stack 
     // pops the left parenth off if the index given is one
-    fn stack_math(operand_stack:&mut Vec<InsertableNum>, operator_stack:&mut Vec<Token>, index: usize) -> Result<(),GeneralError> 
+    fn stack_math(operand_stack:&mut Vec<InsertableNum>, operator_stack:&mut Vec<Token>) -> Result<(),GeneralError> 
     {
+        let mut index = 0;
 
-        if operand_stack.len()>index && operator_stack[index].token_type == TokenType::LeftParenth  
+        // get the next left parenth if it exists
+        let possible = operator_stack
+        .iter().rev()
+        .position(|x| x.token_type== TokenType::LeftParenth);
+
+        if let Some(i) = possible 
         {
+            if i != 0
+            {
+                index = i-1;
+            }
+            else 
+            {
+                index = 0;
+            }
+            
+            // remove the left parent too
             operator_stack.remove(index);
         }
-        
-        
+
+
+
         if operand_stack.len() == 1
         {
             return Ok(())
-        }
-        // else if there isn't enough operands
-        else if !(operand_stack.len() > (operator_stack.len() - index))
-        {
-            return Err(Assembler::create_error("Syntax error, not enoug operands for operator", &operator_stack[0], vec![]))
         }
 
         // do all the times and divide operations up the stack 
@@ -1013,9 +1147,6 @@ impl Assembler
                 copy_index = copy_index+1;
             }
          }
-
-
-
         Ok(())
     }
 
