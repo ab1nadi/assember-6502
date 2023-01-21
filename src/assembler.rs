@@ -1064,16 +1064,9 @@ impl Assembler
         .position(|x| x.token_type== TokenType::LeftParenth);
 
         if let Some(i) = possible 
-        {
-            if i != 0
-            {
-                index = i-1;
-            }
-            else 
-            {
-                index = 0;
-            }
-            
+        {   
+            index = operator_stack.len()-1-i;
+
             // remove the left parent too
             operator_stack.remove(index);
         }
