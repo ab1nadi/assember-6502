@@ -406,7 +406,7 @@ impl LexicalAnalyzer
                         token_type:TokenType::Num1Bytes},
             TokenParser{reg:r"((^\$([0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]))|(^[0-9]+))((?=\W)|(?=\s)|\z)".to_string(),
                         token_type:TokenType::Num2Bytes},
-            TokenParser{reg:r"^([0-9A-za-z$#@!?*&^%~\.;\[\]])+((?=\W)|(?=\s)|\z)".to_string(),
+            TokenParser{reg:r"^([0-9A-za-z$#@!?&^%~\.;\[\]])+((?=\W)|(?=\s)|\z)".to_string(),
                         token_type:TokenType::Label},
             TokenParser{reg:r"^[\w\W]+".to_string(),
                         token_type:TokenType::Garbage}  

@@ -451,7 +451,18 @@ impl Assembler
         Assembler::get_until_eol(assembler, &mut gotten_tokens)?;
 
         // get the expected grammars for this 
-        let instruction = assembler.instruction_table.get(&token_instruction.value).unwrap();
+        let instruction_option = assembler.instruction_table.get(&token_instruction.value.to_lowercase());
+
+        let instruction;
+
+        if let None = instruction_option 
+        {
+            return Err(Assembler::create_error("Instruction not implemented", &token_instruction, vec![TokenType::Instruction]));
+        }
+        else 
+        {
+            instruction = instruction_option.unwrap();
+        }
 
         let mut best_match = &instruction.opcode_grammer[0];
         let mut best_match_count:usize = 0;
@@ -460,7 +471,7 @@ impl Assembler
 
         for grammar in &instruction.opcode_grammer
         {
-            let did_it_match = Assembler::check_instruction_syntax(&gotten_tokens, &grammar.1)?;
+            let did_it_match = Assembler::check_instruction_syntax(assembler,& mut gotten_tokens, &grammar.1)?;
 
             // if its the first pass and it matched
             // just return
@@ -485,7 +496,9 @@ impl Assembler
                 best_match = grammar;
                 expected_index = did_it_match.2;
             }
+
         }
+
 
         // didn't match anthing
         if !matched 
@@ -502,34 +515,24 @@ impl Assembler
         // there is an expression so parse it 
         if let Some(i) = expression_index
         {
+  
             let expression_type = best_match.1[i];
             let expression_stack = &gotten_tokens[i..gotten_tokens.len()-(best_match.1.len()-i-1)];
-
             let num = Assembler::expression(assembler, expression_stack)?;
-            let mut empty_t = Token::empty_token();
-            
-            if num.is_two_bytes() 
-            {
-                empty_t.value = num.unwrap_twobyte().to_string();
-                empty_t.token_type = TokenType::Num2Bytes;
-            }
-            else 
-            {
-                empty_t.value = num.unwrap_byte().to_string();
-                empty_t.token_type = TokenType::Num1Bytes;
-            }
 
-            if num.is_two_bytes() && expression_type == TokenType::Num1Bytes
+            if expression_type == TokenType::Num1Bytes
             {
-                return Err(Assembler::create_error("Instrution expects 1 byte and got a 2 byte expression", &empty_t, vec![TokenType::Num1Bytes]))
+                assembler.file_writer.write(&[num.unwrap_byte()]).unwrap();
             }
-            else if !num.is_two_bytes() && expression_type == TokenType::Num2Bytes 
+            else
             {
-                return Err(Assembler::create_error("Instrution expects 2 byte and got a 1 byte expression", &empty_t, vec![TokenType::Num2Bytes])) 
+                if !num.is_two_bytes()
+                {
+                    println!("WARNING: \n {}: Just an fyi, upcasting 1 byte to 2 bytes for best matching instruction.",gotten_tokens[0].file_line);
+                }
+                let num16 = num.unwrap_twobyte();
+                assembler.file_writer.write(&[num16 as u8, (num16 >> 8) as u8]).unwrap();
             }
-            Assembler::write_token_to_file(&mut assembler.file_writer, empty_t, &mut assembler.symbol_table)?;
-
-
         }
 
         Ok(())
@@ -574,6 +577,8 @@ impl Assembler
     // that case it just returns a 
     fn expression(assembler: &Assembler, expression_stack: &[Token]) -> Result<InsertableNum,GeneralError>
     {
+
+
         let mut operand_stack:Vec<InsertableNum> = vec![];
         let mut operator_stack:Vec<Token> = vec![];
 
@@ -636,32 +641,37 @@ impl Assembler
     // this does two things, checks if the token_vec
     // matches the given token_grammar, and it returns 
     // how far it matched if it didn't
-    fn check_instruction_syntax(token_vec:&Vec<Token>, token_grammar:&Vec<TokenType>)-> Result<(bool,usize,usize),GeneralError>
+    fn check_instruction_syntax(assembler:&Assembler,token_vec:& mut Vec<Token>, token_grammar:&Vec<TokenType>)-> Result<(bool,usize,usize),GeneralError>
     {
         let  operator:Vec<TokenType> = vec![TokenType::PLUS, TokenType::MINUS, TokenType::DIVIDE, TokenType::TIMES];
         let  operand:Vec<TokenType> = vec![TokenType::Num1Bytes, TokenType::Num2Bytes, TokenType::Label];
-        let  end:Vec<TokenType> = vec![TokenType::EOL, TokenType::Comma];
+        let  end:Vec<TokenType> = vec![TokenType::EOL, TokenType::Comma,];
 
 
+
+        // some data to keep track of while it runs
         let mut current_token_grammar_index: usize = 0;
-
         let mut left_parenth_count = 0;
 
-        let mut in_syntax = true;
+        let mut in_expression = false; // pins us to expression parsing once in it until the end
+
 
 
         // iterate over all possible tokens
+        //for (i, token) in token_vec.iter().enumerate()
         for (i, token) in token_vec.iter().enumerate()
         {
 
-
-            if (token_grammar[current_token_grammar_index] == TokenType::Num1Bytes || token_grammar[current_token_grammar_index] == TokenType::Num2Bytes) && in_syntax
+            // expression
+            if (token_grammar[current_token_grammar_index] == TokenType::Num1Bytes || token_grammar[current_token_grammar_index] == TokenType::Num2Bytes) || in_expression
             {
-                in_syntax = true;   // we want to keep going through syntax
+
+                in_expression=true;
 
                 // "(" => operand || "("
                 if token.token_type == TokenType::LeftParenth
                 {
+
                     if !(operand.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type == TokenType::LeftParenth)
                     {
                         return Err(Assembler::create_error("Syntax error", &token_vec[i+1], operand));
@@ -671,6 +681,31 @@ impl Assembler
                 // operand => operator || ")" || End
                 else if operand.contains(&token.token_type)
                 {
+                    // if the operand is a label make sure 
+                    // it exists 
+                    if token.token_type == TokenType::Label
+                    {
+                        let t = assembler.symbol_table.get(&token.value);
+
+                        if let None = t 
+                        {
+                            return Err(Assembler::create_error("Syntax error, label not defined", &token_vec[i], vec![]));
+                        }
+                        else 
+                        {
+                            let num = t.unwrap();
+                        
+                            if num.is_two_bytes() && token_grammar[current_token_grammar_index] == TokenType::Num1Bytes
+                            {
+                                 return Ok((false,i,current_token_grammar_index));
+                            }
+                        }
+                    }
+                    else if token.token_type == TokenType::Num2Bytes && token_grammar[current_token_grammar_index] == TokenType::Num1Bytes
+                    {
+                        return Ok((false,i,current_token_grammar_index));
+                    }
+
                     if !(operator.contains(&token_vec[i+1].token_type) || token_vec[i+1].token_type == TokenType::RightParenth || end.contains(&token_vec[i+1].token_type))
                     {
                         return Err(Assembler::create_error("Syntax error", &token_vec[i+1], [operator.as_slice(), &[TokenType::RightParenth], end.as_slice()].concat()));
@@ -684,7 +719,13 @@ impl Assembler
                         return Err(Assembler::create_error("Syntax error", &token_vec[i+1], operand));
                     }
 
-                    if left_parenth_count == 0
+                    // this grammar doesn't match at all 
+                    if left_parenth_count == 0 && token_grammar[0] == TokenType::LeftParenth
+                    {
+                        return Ok((false, 0,0));
+                    }
+
+                    if left_parenth_count == 0 && token_grammar[current_token_grammar_index+1] != TokenType::RightParenth
                     {
                         return Err(Assembler::create_error("Syntax error, unmatched right parenth", &token_vec[i+1], [operator.as_slice(), &[TokenType::RightParenth], end.as_slice()].concat()));
                     }
@@ -709,7 +750,7 @@ impl Assembler
                 if end.contains(&token_vec[i+1].token_type)
                 {
 
-                    in_syntax = false;    
+                    in_expression=false;
 
                     if left_parenth_count >0
                     {
