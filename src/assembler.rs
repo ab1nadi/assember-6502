@@ -2,8 +2,8 @@ mod instruction;
 mod lexical_analyzer;
 mod peek_wrapper;
 mod gen_errors;
-use std::env::current_exe;
-use std::num::Wrapping;
+mod insertable_num;
+mod stack;
 // crate imports 
 use crate::assembler::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
@@ -12,14 +12,12 @@ use crate::assembler::lexical_analyzer::Token;
 use crate::assembler::peek_wrapper::PeekWrapper;
 use crate::assembler::gen_errors::GeneralError;
 use crate::assembler::lexical_analyzer::LexicalIterator;
-
+use crate::assembler::insertable_num::InsertableNum;
+use crate::assembler::stack::*;
 // std imports
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
-use std::num;
-use std::ptr::null;
-use std::thread::current;
 use std::u8;
 use std::u16;
 
@@ -35,68 +33,6 @@ pub struct Assembler
 }
 
 
-#[derive(Debug)]
-#[derive(Clone)]
-#[derive(Copy)]
-#[derive(PartialEq)]
-
-pub enum InsertableNum
-{
-    Byte(u8),
-    TwoByte(u16),
-}
-
-impl InsertableNum
-{
-    // unwrap
-    // this is basically for printing purposes
-    // unwraps it into a u32
-    pub fn unwrap( self) -> u32
-    {
-        match self
-        {
-            InsertableNum::Byte(num) => num as u32,
-            InsertableNum::TwoByte(num) => num as u32
-        }
-    }
-
-    // unwrap_byte
-    // returns a u8
-    // will not cast this into u16s because we don't believe
-    // in down casting
-    pub fn unwrap_byte(self) -> u8
-    {
-        match self
-        {
-            InsertableNum::Byte(num) => num as u8,
-            InsertableNum::TwoByte(num) => panic!("Down casting is frowned upon my dude")
-        }
-    }
-
-    // unwrap_twobyte 
-    // exptects it be two bytes
-    // never panics because we believe in upcasting
-    pub fn unwrap_twobyte(self) -> u16
-    {
-        match self
-        {
-            InsertableNum::TwoByte(num) => num as u16,
-            InsertableNum::Byte(num) => num as u16
-        }
-    }
-
-
-    // is_two_bytes 
-    // returns true if this number is twobytes 
-    pub fn is_two_bytes(self) -> bool 
-    {
-        match self
-        {
-            InsertableNum::TwoByte(_) => true,
-            InsertableNum::Byte(_) => false
-        }
-    }
-}
 
 
 impl Assembler
@@ -625,13 +561,13 @@ impl Assembler
             
             else if i.token_type == TokenType::RightParenth
             {
-                Assembler::stack_math(&mut operand_stack, &mut operator_stack)?;
+                stack_math(&mut operand_stack, &mut operator_stack)?;
             }
         }
 
 
 
-        Assembler::stack_math(&mut operand_stack, &mut operator_stack)?;
+        stack_math(&mut operand_stack, &mut operator_stack)?;
 
 
         Ok(operand_stack.pop().unwrap())
@@ -1029,172 +965,6 @@ impl Assembler
         _returned
     }
 
-    // do_operation
-    // takes the two operands 
-    // and does the given operation
-    fn do_operation(operand1:InsertableNum, operand2:InsertableNum, operator:Token)-> Result<InsertableNum, GeneralError>
-    {
-        match operator.token_type
-        {
-            TokenType::PLUS =>
-            {
-                // return a u16
-                if operand1.is_two_bytes()|| operand2.is_two_bytes()
-                {
-                    return Ok(InsertableNum::TwoByte(operand1.unwrap_twobyte() + operand2.unwrap_twobyte()))
-                }      
-                else
-                {
-                    return Ok(InsertableNum::Byte((operand1.unwrap_byte() + operand2.unwrap_byte()) as u8))
-                }          
-            },
-            TokenType::MINUS =>
-            {
-                // return a u16
-                if operand1.is_two_bytes()|| operand2.is_two_bytes()
-                {
-                    let i =  Wrapping(operand1.unwrap_twobyte()) - Wrapping(operand2.unwrap_twobyte());
-                    return Ok(InsertableNum::TwoByte(i.0))
-                }      
-                else
-                {
-                    let i = Wrapping(operand1.unwrap_byte()) - Wrapping(operand2.unwrap_byte());
-                    return Ok(InsertableNum::Byte(i.0))
-                }          
-            },
-            TokenType::TIMES =>
-            {
-                // return a u16
-                if operand1.is_two_bytes()|| operand2.is_two_bytes()
-                {
-                    let i =  Wrapping(operand1.unwrap_twobyte()) * Wrapping(operand2.unwrap_twobyte());
-                    return Ok(InsertableNum::TwoByte(i.0))
-                }      
-                else
-                {
-                    let i = Wrapping(operand1.unwrap_byte()) * Wrapping(operand2.unwrap_byte());
-                    return Ok(InsertableNum::Byte(i.0))
-                }          
-            }, 
-            TokenType::DIVIDE =>
-            {
-
-                // cannot divide by zero
-                if operand2.unwrap() == 0
-                {
-                    return Err(Assembler::create_error("Cannot divide by zero", &operator, vec![]));
-                }
-
-
-                // return a u16
-                if operand1.is_two_bytes()|| operand2.is_two_bytes()
-                {
-                    let i =  Wrapping(operand1.unwrap_twobyte()) / Wrapping(operand2.unwrap_twobyte());
-                    return Ok(InsertableNum::TwoByte(i.0));
-                }      
-                else
-                {
-                    let i = Wrapping(operand1.unwrap_byte()) /  Wrapping(operand2.unwrap_byte());
-                    return Ok(InsertableNum::Byte(i.0))
-                }          
-            }
-            _ => {Ok(InsertableNum::Byte(0))}
-        }
-    }
-
-
-    // stack_math
-    // does math between an operand stack and an operator stack
-    // but only does it from a given index in the operator stack 
-    // pops the left parenth off if the index given is one
-    fn stack_math(operand_stack:&mut Vec<InsertableNum>, operator_stack:&mut Vec<Token>) -> Result<(),GeneralError> 
-    {
-        let mut index = 0;
-
-        // get the next left parenth if it exists
-        let possible = operator_stack
-        .iter().rev()
-        .position(|x| x.token_type== TokenType::LeftParenth);
-
-        if let Some(i) = possible 
-        {   
-            index = operator_stack.len()-1-i;
-
-            // remove the left parent too
-            operator_stack.remove(index);
-        }
-
-
-
-        if operand_stack.len() == 1
-        {
-            return Ok(())
-        }
-
-        // do all the times and divide operations up the stack 
-        let mut copy_index = index.clone();
-        while copy_index != operator_stack.len() 
-        {
-            
-            let operator = &operator_stack[copy_index];
-
-            let operand_1_index = operand_stack.len() as i32 - (operator_stack.len() as i32 - copy_index as i32+1);
-
-
-            let operand_1 = &operand_stack[operand_1_index as usize];
-            let operand_2 = &operand_stack[operand_1_index as usize+1];
-
-
-            if operator.token_type == TokenType::TIMES || operator.token_type == TokenType::DIVIDE
-            {
-                // replace the number on the stack
-                let replaced_index = operand_1_index;
-
-                operand_stack[replaced_index as usize] = Assembler::do_operation(*operand_1, *operand_2, operator.clone())?;
-
-                // remove the next position 
-                operand_stack.remove(replaced_index as usize+1);
-
-                operator_stack.remove(copy_index as usize);
-            }
-            else 
-            {
-                copy_index = copy_index+1;
-            }
-        }
-
-         // do all the add and subtract operations up the stack 
-         let mut copy_index = index.clone();
-         while copy_index != operator_stack.len() 
-         {
-            let operator = &operator_stack[copy_index];
-
-            let operand_1_index = operand_stack.len() as i32 - (operator_stack.len()as i32 - copy_index as i32+1);
-
-            let operand_1 = &operand_stack[operand_1_index as usize];
-            let operand_2 = &operand_stack[operand_1_index as usize+1];
-
-
-
-            if operator.token_type == TokenType::PLUS || operator.token_type == TokenType::MINUS
-            {
-                // replace the number on the stack
-                let replaced_index = operand_1_index;
-                
-                operand_stack[replaced_index as usize] = Assembler::do_operation(*operand_1, *operand_2, operator.clone())?;
-
-                // remove the next position 
-                operand_stack.remove(replaced_index as usize+1);
-
-                operator_stack.remove(copy_index as usize);
-            }
-            else 
-            {
-                copy_index = copy_index+1;
-            }
-         }
-        Ok(())
-    }
 
     // possible directives for the assembler 
     ////////////////////////////////////////////////////////////////////////
