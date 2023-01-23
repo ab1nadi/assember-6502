@@ -656,6 +656,8 @@ impl Assembler
         let mut in_expression = false; // pins us to expression parsing once in it until the end
 
 
+        let mut force_end = false;          // makes it force end
+                                                  // there is only one occurence where this happens
 
         // iterate over all possible tokens
         //for (i, token) in token_vec.iter().enumerate()
@@ -665,6 +667,7 @@ impl Assembler
             // expression
             if (token_grammar[current_token_grammar_index] == TokenType::Num1Bytes || token_grammar[current_token_grammar_index] == TokenType::Num2Bytes) || in_expression
             {
+
 
                 in_expression=true;
 
@@ -710,6 +713,11 @@ impl Assembler
                     {
                         return Err(Assembler::create_error("Syntax error", &token_vec[i+1], [operator.as_slice(), &[TokenType::RightParenth], end.as_slice()].concat()));
                     }
+
+                    if  i+1 != token_vec.len() && token_vec[i+1].token_type == TokenType::RightParenth && left_parenth_count == 0 && token_grammar[current_token_grammar_index+1] == TokenType::RightParenth
+                    {
+                        force_end = true;
+                    }
                 }
                 // ")" => operator || ")" || End
                 else if token.token_type == TokenType::RightParenth
@@ -725,12 +733,16 @@ impl Assembler
                         return Ok((false, 0,0));
                     }
 
+
+                    // the parenth is not apart of the grammar so this is an error
                     if left_parenth_count == 0 && token_grammar[current_token_grammar_index+1] != TokenType::RightParenth
                     {
                         return Err(Assembler::create_error("Syntax error, unmatched right parenth", &token_vec[i+1], [operator.as_slice(), &[TokenType::RightParenth], end.as_slice()].concat()));
                     }
 
                     left_parenth_count = left_parenth_count -1;
+                
+
                 }
 
                 // operator => operaand || "("
@@ -747,7 +759,7 @@ impl Assembler
                 }
 
                 // its the end
-                if end.contains(&token_vec[i+1].token_type)
+                if end.contains(&token_vec[i+1].token_type) || force_end
                 {
 
                     in_expression=false;

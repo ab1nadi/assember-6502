@@ -52,8 +52,8 @@ impl Instruction
         map.insert("adc".to_string(), Instruction{
             string_code:"adc".to_string(),
             opcode_grammer: vec![
-                (0x71,  grammars::INDIRECTY.to_vec()),
                 (0x61,  grammars::INDIRECTX.to_vec()),
+                (0x71,  grammars::INDIRECTY.to_vec()),
                 (0x69,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0x65,  grammars::ZEROPAGE.to_vec()),
                 (0x75,  grammars::ZEROPAGEX.to_vec()),

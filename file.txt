@@ -1,2 +1,1 @@
-label = $44 + (20/2) * 3
-ADC (label * 50 + $44), X ;it fucking works
+ADC #$44
