@@ -14,6 +14,17 @@ The assembler does expect 2 arguments first the input file and second the output
 Alternatively you could just use the binary, but I'll let whoever wants to use this
 compile it themselves. 
 
+## Label Expressions & Label Variables
+The assembler supports label expressions and label variables. Pretty much anywhere a label can be placed, you can add another label to it. You can add and subtract from it. You can multiply and divide it. 
+
+```assembly
+two = 2                     ; label variable, instead of pointing to memory it just holds a value
+
+three = two +1              ; 
+
+LDA #($f1+12)/2 * three     ; Loads mmediate 1 byte value into a register
+```
+
 ## Directives 
 I've currently only implented 2 directives .ORG and .BYTE
 
