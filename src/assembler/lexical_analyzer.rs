@@ -150,9 +150,7 @@ pub struct TokenParser
 // the lexical analyzer
 impl LexicalAnalyzer
 {
-    // exposed api /////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
-    
+
     // new 
     // returns a new lexical 
     // analyzer
@@ -182,39 +180,6 @@ impl LexicalAnalyzer
         })
     }
 
-    // reset
-    // essentially this resets
-    // the iterator to the beginning 
-    // of the fill
-    /* 
-    pub fn reset(& mut self)-> Result<(), GeneralError>
-    {
-
-        // get the inner file
-        let possible_error = self.reader.seek(SeekFrom::Start(0));
-
-        match possible_error
-        {
-            Err(_) => return Err(LexicalAnalyzer::error("Something bad happened reseting the lexical analyzer")),
-            _ => {},
-        }
-
-        // reset eof 
-        self.return_eof = false;
-        self.returned_eof = false;
-        self.return_eol = false;
-        self.current_line_new =true;
-        self.file_line = 0;
-        self.logical_line =0;
-
-        // return ok 
-        Ok(())
-    }
-
-    */
-
-    // exposed api end //////////////////////////////////////////
-    ////////////////////////////////////////////////////////////
 
     // get_line
     // private function that

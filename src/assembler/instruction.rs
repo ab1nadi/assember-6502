@@ -54,12 +54,12 @@ impl Instruction
             opcode_grammer: vec![
                 (0x61,  grammars::INDIRECTX.to_vec()),
                 (0x71,  grammars::INDIRECTY.to_vec()),
-                (0x69,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0x65,  grammars::ZEROPAGE.to_vec()),
+                (0x79,  grammars::ABSOLUTEY.to_vec()),
+                (0x69,  grammars::IMMEDIAT1BYTE.to_vec()),
                 (0x75,  grammars::ZEROPAGEX.to_vec()),
                 (0x6d,  grammars::ABSOLUTE.to_vec()),
                 (0x7d,  grammars::ABSOLUTEX.to_vec()),
-                (0x79,  grammars::ABSOLUTEY.to_vec()),
             ],
         });
 
@@ -341,14 +341,15 @@ impl Instruction
         map.insert("lda".to_string(), Instruction{
             string_code:"lda".to_string(),
             opcode_grammer: vec![
-                (0xb9,  grammars::ABSOLUTEY.to_vec()),
                 (0xa1,  grammars::INDIRECTX.to_vec()),
-                (0xb1,  grammars::INDIRECTY.to_vec()),
-                (0xa9,  grammars::IMMEDIAT1BYTE.to_vec()),
+                (0xb1,  grammars::INDIRECTY.to_vec()),  
                 (0xa5,  grammars::ZEROPAGE.to_vec()),
+                (0xb9,  grammars::ABSOLUTEY.to_vec()),              
                 (0xb5,  grammars::ZEROPAGEX.to_vec()),
                 (0xad,  grammars::ABSOLUTE.to_vec()),
                 (0xbd,  grammars::ABSOLUTEX.to_vec()),
+                (0xa9,  grammars::IMMEDIAT1BYTE.to_vec()),
+
             ],
         });
 

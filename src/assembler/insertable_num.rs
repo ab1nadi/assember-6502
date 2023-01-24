@@ -3,6 +3,12 @@
 #[derive(Copy)]
 #[derive(PartialEq)]
 
+
+
+// InsertableNum 
+// a general purpose structure
+// I use to store both u8's and u16's 
+// in a symbol table
 pub enum InsertableNum
 {
     Byte(u8),
@@ -32,7 +38,7 @@ impl InsertableNum
         match self
         {
             InsertableNum::Byte(num) => num as u8,
-            InsertableNum::TwoByte(num) => panic!("Down casting is frowned upon my dude")
+            InsertableNum::TwoByte(_) => panic!("Down casting is frowned upon my dude")
         }
     }
 

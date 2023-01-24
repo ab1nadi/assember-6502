@@ -4,6 +4,7 @@ mod peek_wrapper;
 mod gen_errors;
 mod insertable_num;
 mod stack;
+
 // crate imports 
 use crate::assembler::lexical_analyzer::LexicalAnalyzer;
 use crate::assembler::instruction::Instruction;
@@ -14,6 +15,7 @@ use crate::assembler::gen_errors::GeneralError;
 use crate::assembler::lexical_analyzer::LexicalIterator;
 use crate::assembler::insertable_num::InsertableNum;
 use crate::assembler::stack::*;
+
 // std imports
 use std::collections::HashMap;
 use std::fs::File;
@@ -585,6 +587,14 @@ impl Assembler
 
 
 
+        // some things we know 
+        if token_vec[0].token_type == TokenType::Hash && token_grammar[0] != TokenType::Hash
+        {
+            println!("this ran");
+            return Ok((false, 0,0));
+        }
+
+
         // some data to keep track of while it runs
         let mut current_token_grammar_index: usize = 0;
         let mut left_parenth_count = 0;
@@ -603,6 +613,7 @@ impl Assembler
             // expression
             if (token_grammar[current_token_grammar_index] == TokenType::Num1Bytes || token_grammar[current_token_grammar_index] == TokenType::Num2Bytes) || in_expression
             {
+
 
 
                 in_expression=true;
