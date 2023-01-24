@@ -1,3 +1,5 @@
-LDA $4400,Y
+two = 2                     ; label variable, instead of pointing to memory it just holds a value
 
-LDA $4400,X 
+three = two +1
+
+LDA #($f1+12)/2 * three

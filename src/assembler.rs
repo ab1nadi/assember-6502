@@ -73,7 +73,6 @@ impl Assembler
         self.first_pass()?;
         self.second_pass()?;
 
-        println!("{:?}", self.symbol_table);
         Ok(())
     }
 
@@ -590,7 +589,6 @@ impl Assembler
         // some things we know 
         if token_vec[0].token_type == TokenType::Hash && token_grammar[0] != TokenType::Hash
         {
-            println!("this ran");
             return Ok((false, 0,0));
         }
 
