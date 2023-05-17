@@ -5,9 +5,15 @@ that don't exist or aren't implemented.
 
 
 ## Using the Assembler
-* Clone the repository.
-
-* Compile and run: 
+1. **Clone the repository:**
+```bash
+git clone https://github.com/ab1nadi/assembler-6502.git
+```
+2. **Navigate to the project directory:**
+```bash
+cd assembler
+```
+4. **Compile and run:** 
 ```bash
 cargo run -- assemblyfile.asm  output.a
 ```
